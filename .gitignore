@@ -1,3 +1,5 @@
 images/
 shapefiles/
+target/
+.idea/
 *.iml

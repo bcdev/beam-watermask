@@ -100,8 +100,7 @@ public class ShapeFileRasterizer {
                 }
             });
             if (shapeFiles != null) {
-                for (int i = 0, shapeFilesLength = shapeFiles.length; i < 10; i++) {
-//                for (int i = 0, shapeFilesLength = shapeFiles.length; i < shapeFilesLength; i++) {
+                for (int i = 0, shapeFilesLength = shapeFiles.length; i < shapeFilesLength; i++) {
                     File shapeFile = shapeFiles[i];
                     ZipFile zipFile = new ZipFile(shapeFile);
                     final Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -125,7 +124,7 @@ public class ShapeFileRasterizer {
         private void zipFiles() throws IOException {
             byte[] buf = new byte[1024];
 
-            final String outFilename = targetDir.getAbsolutePath() + File.separatorChar + "images.zip";
+            final String outFilename = targetDir.getAbsolutePath() + File.separatorChar + WatermaskClassifier.ZIP_FILENAME;
             ZipOutputStream out = new ZipOutputStream(new FileOutputStream(outFilename));
             try {
 
@@ -192,8 +191,16 @@ public class ShapeFileRasterizer {
             final FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getFeatureSource(url);
             context.addLayer(featureSource, createPolygonStyle());
             final ReferencedEnvelope layerBounds = context.getLayerBounds();
-            int width = 500;
-            int height = 500;
+            // TODO - validate
+            // Resolution: 30 meters. Datum: WGS84. Projection: Geographic lat/lon. Image size: 1° squared.
+
+            double horizontalCircumference = (int) (2 * Math.PI * DefaultGeographicCRS.WGS84.getDatum().getEllipsoid().getSemiMajorAxis());
+            double verticalCircumference = (int) (2 * Math.PI * DefaultGeographicCRS.WGS84.getDatum().getEllipsoid().getSemiMinorAxis());
+            final double horizontalPixelCount = horizontalCircumference / 30;
+            final double verticalPixelCount = verticalCircumference / 30;
+
+            int width = (int) (horizontalPixelCount / 360);
+            int height = (int) (verticalPixelCount / 180);
 
             BufferedImage landMaskImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY);
             Graphics2D graphics = landMaskImage.createGraphics();

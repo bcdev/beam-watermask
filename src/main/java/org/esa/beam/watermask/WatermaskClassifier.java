@@ -18,10 +18,12 @@ package org.esa.beam.watermask;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Classifies a pixel given by its geocoordinate as water pixel.
@@ -30,12 +32,13 @@ import java.net.URL;
  */
 public class WatermaskClassifier {
 
+    static final String ZIP_FILENAME = "images.zip";
+
     public boolean isWater(float lat, float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
-        File file = findImage(geoPos);
-        final BufferedImage image = ImageIO.read(file);
-        Pixel pixel = geoPosToPixel(geoPos);
-        // TODO - validate
+        InputStream stream = findImage(geoPos);
+        final BufferedImage image = ImageIO.read(stream);
+        Pixel pixel = geoPosToPixel(image.getWidth(), image.getHeight(), geoPos);
         final int sample = image.getData().getSample(pixel.x, pixel.y, 0);
         if (sample == 0) {
             return true;
@@ -45,24 +48,51 @@ public class WatermaskClassifier {
         throw new IllegalStateException("Sample value is '" + sample + "', but should be 0 or 1.");
     }
 
-    private Pixel geoPosToPixel(GeoPos geoPos) {
-        return null;
+    Pixel geoPosToPixel(int width, int height, GeoPos geoPos) {
+        double latitudePart = geoPos.lat - (int) geoPos.lat;
+        double longitudePart = geoPos.lon - (int) geoPos.lon;
+        final int xCoord = (int) (width * longitudePart);
+        final int yCoord = (int) (height * latitudePart);
+        return new Pixel(xCoord, yCoord);
     }
 
-    private File findImage(final GeoPos geoPos) {
-        final URL someResource = getClass().getResource("e000n05f.zip");
-        final File resourceDir = new File(someResource.getFile()).getParentFile();
-        final File[] files = resourceDir.listFiles(new FilenameFilter() {
-            public boolean accept(File dir, String fileName) {
-                return fileName.endsWith(".zip") && isInRange(fileName, geoPos);
+    InputStream findImage(final GeoPos geoPos) throws IOException {
+        final URL imageResourceUrl = getClass().getResource(ZIP_FILENAME);
+        final ZipFile zipFile = new ZipFile(imageResourceUrl.getFile());
+        final Enumeration<? extends ZipEntry> entries = zipFile.entries();
+        while (entries.hasMoreElements()) {
+            final ZipEntry entry = entries.nextElement();
+            final String entryName = entry.getName();
+            if (isInRange(entryName, geoPos)) {
+                return zipFile.getInputStream(entry);
             }
-        });
-        return null;
+        }
+
+        throw new IllegalArgumentException(
+                "No image found for geo-position lat=" + geoPos.lat + ", lon=" + geoPos.lon + ".");
     }
 
-    private boolean isInRange(String fileName, GeoPos geoPos) {
-        String[] splittedString = fileName.split("n");
-        return false;
+    boolean isInRange(String fileName, GeoPos geoPos) {
+        final String latPositionString = fileName.substring(1, 4);
+        final String lonPositionString = fileName.substring(5, 7);
+        final int fileLatitude = Integer.parseInt(latPositionString);
+        final int fileLongitude = Integer.parseInt(lonPositionString);
+        final int inputLatitude = (int) geoPos.lat;
+        final int inputLongitude = (int) geoPos.lon;
+
+        final boolean geoPosIsWest = geoPos.lat < 0;
+        final boolean isInRange = Math.abs(inputLatitude) >= fileLatitude &&
+                                  Math.abs(inputLatitude) <= fileLatitude + 1 &&
+                                  Math.abs(inputLongitude) >= fileLongitude &&
+                                  Math.abs(inputLongitude) <= fileLongitude + 1;
+
+        if (fileName.startsWith("w")) {
+            return geoPosIsWest && isInRange;
+        } else if (fileName.startsWith("e")) {
+            return !geoPosIsWest && isInRange;
+        } else {
+            throw new IllegalArgumentException("No valid filename: '" + fileName + "'.");
+        }
     }
 
     static class Pixel {
@@ -70,7 +100,7 @@ public class WatermaskClassifier {
         int x;
         int y;
 
-        private Pixel(int x, int y) {
+        Pixel(int x, int y) {
             this.x = x;
             this.y = y;
         }
@@ -78,10 +108,14 @@ public class WatermaskClassifier {
 
     static class GeoPos {
 
-        float lat;
-        float lon;
+        double lat;
+        double lon;
 
-        private GeoPos(float lat, float lon) {
+        GeoPos(double lat, double lon) {
+            if (lat < -180 || lat > 180 || lon < -90 || lon > 90) {
+                throw new IllegalArgumentException(
+                        "Lat has to be between -180 and 180, and lon has to be between -90 and 90, respectively.");
+            }
             this.lat = lat;
             this.lon = lon;
         }
