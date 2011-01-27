@@ -44,6 +44,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Responsible for transferring shapefiles containing a land/water-mask into a rasterized image.
@@ -70,7 +72,7 @@ public class ShapeFileRasterizer {
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
-        if( args.length != 2 ) {
+        if (args.length != 2) {
             throw new IllegalArgumentException("Directory containing shapefiles and target directory are needed.");
         }
         final Rasterizer rasterizer = new Rasterizer(targetDir);
@@ -98,7 +100,9 @@ public class ShapeFileRasterizer {
                 }
             });
             if (shapeFiles != null) {
-                for (File shapeFile : shapeFiles) {
+                for (int i = 0, shapeFilesLength = shapeFiles.length; i < 10; i++) {
+//                for (int i = 0, shapeFilesLength = shapeFiles.length; i < shapeFilesLength; i++) {
+                    File shapeFile = shapeFiles[i];
                     ZipFile zipFile = new ZipFile(shapeFile);
                     final Enumeration<? extends ZipEntry> entries = zipFile.entries();
                     List<File> tempFiles = generateTempFiles(zipFile, entries);
@@ -115,6 +119,45 @@ public class ShapeFileRasterizer {
                     rasterizeShapefiles(subDir);
                 }
             }
+            zipFiles();
+        }
+
+        private void zipFiles() throws IOException {
+            byte[] buf = new byte[1024];
+
+            final String outFilename = targetDir.getAbsolutePath() + File.separatorChar + "images.zip";
+            ZipOutputStream out = new ZipOutputStream(new FileOutputStream(outFilename));
+            try {
+
+                final File[] files = targetDir.listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String name) {
+                        return !"images.zip".equals(name);
+                    }
+                });
+
+                // Compress the files
+                for (File file : files) {
+                    FileInputStream in = new FileInputStream(file.getAbsolutePath());
+
+                    out.putNextEntry(new ZipEntry(file.getName()));
+
+                    int len;
+                    while ((len = in.read(buf)) > 0) {
+                        out.write(buf, 0, len);
+                    }
+
+                    out.closeEntry();
+                    in.close();
+                }
+
+                // Complete the ZIP file
+            } catch (IOException e) {
+                // TODO - handle
+            } finally {
+                out.close();
+            }
+
         }
 
         private List<File> generateTempFiles(ZipFile zipFile, Enumeration<? extends ZipEntry> entries) throws
