@@ -70,6 +70,7 @@ public class ShapeFileRasterizer {
 
     Set<File> filesToDelete = new HashSet<File>();
     private final File targetDir;
+    static final Point IMAGE_SIZE = new Point(800, 800);
 
     public ShapeFileRasterizer(File targetDir) {
         this.targetDir = targetDir;
@@ -119,24 +120,23 @@ public class ShapeFileRasterizer {
         zipFiles();
     }
 
-    BufferedImage createImage(File file) throws IOException {
+    BufferedImage createImage(File shapeFile) throws IOException {
         CoordinateReferenceSystem crs = DefaultGeographicCRS.WGS84;
         MapContext context = new DefaultMapContext(crs);
 
-        URL url = file.toURI().toURL();
+        URL url = shapeFile.toURI().toURL();
         final FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getFeatureSource(url);
         context.addLayer(featureSource, createPolygonStyle());
 
-        Point p = WatermaskClassifier.computeImagePixelCount();
-        int width = p.x;
-        int height = p.y;
+        int width = IMAGE_SIZE.x;
+        int height = IMAGE_SIZE.y;
 
         BufferedImage landMaskImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY);
         Graphics2D graphics = landMaskImage.createGraphics();
 
-        int lonMin = Integer.parseInt(file.getName().substring(1, 4));
+        int lonMin = Integer.parseInt(shapeFile.getName().substring(1, 4));
         int lonMax = lonMin + 1;
-        int latMin = Integer.parseInt(file.getName().substring(5, 7));
+        int latMin = Integer.parseInt(shapeFile.getName().substring(5, 7));
         int latMax = latMin + 1;
 
         StreamingRenderer renderer = new StreamingRenderer();
@@ -144,8 +144,8 @@ public class ShapeFileRasterizer {
         renderer.paint(graphics, new Rectangle(0, 0, width, height),
                        new ReferencedEnvelope(lonMin, lonMax, latMin, latMax, crs));
 
-        filesToDelete.add(new File(getFilenameWithoutExtension(file.getName()) + ".fix"));
-        filesToDelete.add(new File(getFilenameWithoutExtension(file.getName()) + ".qix"));
+        filesToDelete.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".fix"));
+        filesToDelete.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".qix"));
         return landMaskImage;
     }
 
@@ -159,11 +159,10 @@ public class ShapeFileRasterizer {
         System.out.println("Writing file '" + outputFile.getAbsolutePath() + "'.");
 
         try {
-            for (byte chunk : data) {
-                fileOutputStream.write(chunk);
-            }
+            fileOutputStream.write(data);
         } catch (IOException e) {
             // TODO - handle
+            e.printStackTrace();
         } finally {
             try {
                 fileOutputStream.close();
