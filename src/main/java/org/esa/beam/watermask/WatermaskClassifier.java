@@ -16,8 +16,7 @@
 
 package org.esa.beam.watermask;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
+import java.awt.Point;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -33,27 +32,45 @@ import java.util.zip.ZipFile;
 public class WatermaskClassifier {
 
     static final String ZIP_FILENAME = "images.zip";
+    private static final int METERS_PER_PIXEL = 30;
+    private static final int HORIZONTAL_SHAPEFILE_COUNT = 360;
+    private static final int VERTICAL_SHAPEFILE_COUNT = 180;
 
     public boolean isWater(float lat, float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
+        // TODO - cache images
         InputStream stream = findImage(geoPos);
-        final BufferedImage image = ImageIO.read(stream);
-        Pixel pixel = geoPosToPixel(image.getWidth(), image.getHeight(), geoPos);
-        final int sample = image.getData().getSample(pixel.x, pixel.y, 0);
-        if (sample == 0) {
-            return true;
-        } else if (sample == 1) {
-            return false;
+        final Point imageSize = computeImagePixelCount();
+        Point pixelPosition = geoPosToPixel(imageSize.x, imageSize.y, geoPos);
+        int offset = computeOffset(pixelPosition, imageSize);
+        byte[] buffer = new byte[1];
+        int counter = 0;
+        while (counter < offset) {
+            stream.read(buffer);
+            counter++;
         }
-        throw new IllegalStateException("Sample value is '" + sample + "', but should be 0 or 1.");
+        stream.close();
+        final byte byteSample = buffer[0];
+        int sample = byteSample & 0xFF;
+        System.out.println("sample = " + sample);
+        return (sample % 2 == 1);
     }
 
-    Pixel geoPosToPixel(int width, int height, GeoPos geoPos) {
+    int computeOffset(Point position, Point imageSize) {
+        if( position.x >= imageSize.x || position.y >= imageSize.y) {
+            throw new IllegalArgumentException("Position '" + position.toString() + "' is not inside the image bounds '" + imageSize.toString() + "'.");
+        }
+        // divide by 8 because the image has been written in byte-chunks, but we want to read bit-wise
+        return (position.y * imageSize.x + position.x) / 8;
+    }
+
+    Point geoPosToPixel(int width, int height, GeoPos geoPos) {
+        // exploiting that shapefiles are of size '1° squared'
         double latitudePart = geoPos.lat - (int) geoPos.lat;
         double longitudePart = geoPos.lon - (int) geoPos.lon;
-        final int xCoord = (int) (width * longitudePart);
-        final int yCoord = (int) (height * latitudePart);
-        return new Pixel(xCoord, yCoord);
+        final int xCoord = Math.abs((int) (width * longitudePart));
+        final int yCoord = Math.abs((int) (height * latitudePart));
+        return new Point(xCoord, yCoord);
     }
 
     InputStream findImage(final GeoPos geoPos) throws IOException {
@@ -95,15 +112,16 @@ public class WatermaskClassifier {
         }
     }
 
-    static class Pixel {
-
-        int x;
-        int y;
-
-        Pixel(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
+    static Point computeImagePixelCount() {
+        // Resolution: 30 meters. Datum: WGS84. Projection: Geographic lat/lon. Image size: 1° squared.
+//        final Ellipsoid ellipsoid = DefaultGeographicCRS.WGS84.getDatum().getEllipsoid();
+//        double horizontalCircumference = (int) (2 * Math.PI * ellipsoid.getSemiMajorAxis());
+//        final double horizontalPixelCount = horizontalCircumference / METERS_PER_PIXEL;
+//        int width = (int) (horizontalPixelCount / HORIZONTAL_SHAPEFILE_COUNT);
+//        double verticalCircumference = (int) (2 * Math.PI * ellipsoid.getSemiMinorAxis());
+//        final double verticalPixelCount = verticalCircumference / METERS_PER_PIXEL;
+//        int height = (int) (verticalPixelCount / VERTICAL_SHAPEFILE_COUNT);
+        return new Point(1024, 1024);
     }
 
     static class GeoPos {

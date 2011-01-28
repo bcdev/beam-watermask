@@ -19,6 +19,7 @@ package org.esa.beam.watermask;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.awt.Point;
 import java.io.IOException;
 
 import static org.junit.Assert.*;
@@ -38,7 +39,13 @@ public class WatermaskClassifierTest {
     @Test
     public void testIsWater() throws Exception {
         assertTrue(watermaskClassifier.isWater(0.5f, 5.5f));
-        assertFalse(watermaskClassifier.isWater(0.25f, 5.9f));
+        assertTrue(watermaskClassifier.isWater(0.96f, 5.73f));
+        assertTrue(watermaskClassifier.isWater(0.03f, 5.61f));
+        assertTrue(watermaskClassifier.isWater(0.25f, 5.03f));
+        assertFalse(watermaskClassifier.isWater(0.01f, 5.97f));
+        assertFalse(watermaskClassifier.isWater(0.27f, 5.94f));
+        assertFalse(watermaskClassifier.isWater(0.58f, 5.91f));
+        assertFalse(watermaskClassifier.isWater(0.87f, 5.99f));
     }
 
     @Test
@@ -53,17 +60,29 @@ public class WatermaskClassifierTest {
         checkPixelPosLon(20, 0, 512);
         checkPixelPosLat(20.7, 358, 512);
         checkPixelPosLon(10.5, 183, 367);
+
+        checkPixelPosLat(-0.8, 80, 100);
+        checkPixelPosLon(-0.8, 80, 100);
+        checkPixelPosLat(-123.45, 45, 100);
+        checkPixelPosLon(-88.12, 12, 100);
+        checkPixelPosLat(-123.45, 450, 1000);
+        checkPixelPosLon(-88.12, 120, 1000);
+        checkPixelPosLat(-10, 0, 367);
+        checkPixelPosLon(-20, 0, 512);
+        checkPixelPosLat(-20.7, 358, 512);
+        checkPixelPosLon(-10.5, 183, 367);
+
     }
 
     private void checkPixelPosLat(double lat, int expectedY, final int height) {
-        WatermaskClassifier.Pixel pixelPos;
+        Point pixelPos;
         WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(lat, 0);
         pixelPos = watermaskClassifier.geoPosToPixel(0, height, geoPos);
         assertEquals(expectedY, pixelPos.y);
     }
 
     private void checkPixelPosLon(double lon, int expectedX, final int width) {
-        WatermaskClassifier.Pixel pixelPos;
+        Point pixelPos;
         WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(0, lon);
         pixelPos = watermaskClassifier.geoPosToPixel(width, 0, geoPos);
         assertEquals(expectedX, pixelPos.x);
@@ -107,4 +126,28 @@ public class WatermaskClassifierTest {
         final WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(179, 10);
         watermaskClassifier.findImage(geoPos);
     }
+
+    @Test
+    public void testComputeOffset() throws Exception {
+        Point imagePixelCount = WatermaskClassifier.computeImagePixelCount();
+
+        int offset = watermaskClassifier.computeOffset(new Point(0, 0), new Point(1024, 1024));
+        assertEquals(0, offset);
+
+        offset = watermaskClassifier.computeOffset(new Point(10, 50), imagePixelCount);
+        assertEquals(6401, offset);
+
+        offset = watermaskClassifier.computeOffset(new Point(367, 12), imagePixelCount);
+        assertEquals(1581, offset);
+
+        offset = watermaskClassifier.computeOffset(new Point(1023, 1023), new Point(1024, 1024));
+        assertEquals(131071, offset);
+    }
+
+//    @Test
+//    public void testComputeImageSize() throws Exception {
+//        Point imagePixelCount = WatermaskClassifier.computeImagePixelCount();
+//        assertEquals(3710, imagePixelCount.x);
+//        assertEquals(7396, imagePixelCount.y);
+//    }
 }
