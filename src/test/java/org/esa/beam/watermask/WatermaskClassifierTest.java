@@ -20,9 +20,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.awt.Point;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 import static org.junit.Assert.*;
@@ -32,7 +29,6 @@ import static org.junit.Assert.*;
  */
 public class WatermaskClassifierTest {
 
-    private static final String TESTIMAGE_PATH = "C:\\temp\\testimage.img";
     private WatermaskClassifier watermaskClassifier;
 
     @Before
@@ -92,49 +88,41 @@ public class WatermaskClassifierTest {
 
     @Test
     public void testComputeOffset() throws Exception {
-        Point imagePixelCount = new Point(1024, 1024);
-
-        int offset = watermaskClassifier.computeOffset(new Point(0, 0), new Point(1024, 1024));
+        int offset = watermaskClassifier.computeStreamOffset(new Point(0, 0), new Point(5, 5));
         assertEquals(0, offset);
 
-        offset = watermaskClassifier.computeOffset(new Point(10, 50), imagePixelCount);
-        assertEquals(6401, offset);
+        offset = watermaskClassifier.computeStreamOffset(new Point(1, 0), new Point(5, 5));
+        assertEquals(1/8, offset);
 
-        offset = watermaskClassifier.computeOffset(new Point(367, 12), imagePixelCount);
-        assertEquals(1581, offset);
+        offset = watermaskClassifier.computeStreamOffset(new Point(4, 0), new Point(5, 5));
+        assertEquals(4/8, offset);
 
-        offset = watermaskClassifier.computeOffset(new Point(1023, 1023), new Point(1024, 1024));
-        assertEquals(131071, offset);
+        offset = watermaskClassifier.computeStreamOffset(new Point(0, 1), new Point(5, 5));
+        assertEquals(5/8, offset);
+
+        offset = watermaskClassifier.computeStreamOffset(new Point(0, 2), new Point(5, 5));
+        assertEquals(10/8, offset);
+
+        offset = watermaskClassifier.computeStreamOffset(new Point(4, 4), new Point(5, 5));
+        assertEquals(24/8, offset);
     }
 
-    //    @Test
-    public void testIsWater2() throws Exception {
-        generateTestImage();
+    @Test
+    public void testToBinaryString() throws Exception {
+        byte b = 0;
+        String s = WatermaskClassifier.toBinaryString(b);
+        assertEquals("00000000", s);
 
-        assertFalse(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.0f, 0.0f));
-        assertFalse(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.3f, 0.1f));
-        assertFalse(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.5f, 0.1f));
-        assertFalse(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.8f, 0.1f));
+        b = 64;
+        s = WatermaskClassifier.toBinaryString(b);
+        assertEquals("01000000", s);
 
-        assertTrue(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.0f, 0.8f));
-        assertTrue(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.3f, 0.8f));
-        assertTrue(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.5f, 0.8f));
-        assertTrue(watermaskClassifier.isWater(new FileInputStream(TESTIMAGE_PATH), 0.8f, 0.8f));
+        b = 127;
+        s = WatermaskClassifier.toBinaryString(b);
+        assertEquals("01111111", s);
 
-        new File(TESTIMAGE_PATH).delete();
+        b = -128;
+        s = WatermaskClassifier.toBinaryString(b);
+        assertEquals("10000000", s);
     }
-
-    private void generateTestImage() throws Exception {
-        FileOutputStream stream = new FileOutputStream(TESTIMAGE_PATH);
-        byte[] data = new byte[1024];
-        for (int i = 0; i < 512; i++) {
-            data[i] = 0;
-        }
-        for (int i = 512; i < 1024; i++) {
-            data[i] = 1;
-        }
-        stream.write(data);
-        stream.close();
-    }
-
 }

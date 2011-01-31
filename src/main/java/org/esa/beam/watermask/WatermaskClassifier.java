@@ -28,8 +28,6 @@ import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import static org.esa.beam.watermask.ShapeFileRasterizer.*;
-
 /**
  * Classifies a pixel given by its geocoordinate as water pixel.
  *
@@ -39,12 +37,22 @@ public class WatermaskClassifier {
 
     static final String ZIP_FILENAME = "images.zip";
 
+    private final int SIDE_LENGTH;
+
+    public WatermaskClassifier() {
+        SIDE_LENGTH = 1024;
+    }
+
+    public WatermaskClassifier(int sideLength) {
+        SIDE_LENGTH = sideLength;
+    }
+
     public boolean isWater(float lat, float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
         // TODO - cache images
         InputStream stream = findImage(geoPos);
         final BufferedImage bufferedImage = readImage(stream);
-        final Point point = geoPosToPixel(IMAGE_SIZE.x, IMAGE_SIZE.y, geoPos);
+        final Point point = geoPosToPixel(SIDE_LENGTH, SIDE_LENGTH, geoPos);
         final SampleModel sampleModel = bufferedImage.getSampleModel();
         final DataBuffer dataBuffer = bufferedImage.getData().getDataBuffer();
         final int sample = sampleModel.getSample(point.x, point.y, 0, dataBuffer);
@@ -52,34 +60,11 @@ public class WatermaskClassifier {
     }
 
     BufferedImage readImage(final InputStream inputStream) throws IOException {
-        BufferedImage image = new BufferedImage(IMAGE_SIZE.x, IMAGE_SIZE.y, BufferedImage.TYPE_BYTE_BINARY);
-        final byte[] data = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-        inputStream.read(data);
+        BufferedImage image = new BufferedImage(SIDE_LENGTH, SIDE_LENGTH, BufferedImage.TYPE_BYTE_BINARY);
+        final byte[] buffer = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+        inputStream.read(buffer);
         inputStream.close();
         return image;
-    }
-
-    @SuppressWarnings({"ResultOfMethodCallIgnored"})
-    boolean isWater(InputStream stream, float lat, float lon) throws IOException {
-        final GeoPos geoPos = new GeoPos(lat, lon);
-        Point pixelPosition = geoPosToPixel(IMAGE_SIZE.x, IMAGE_SIZE.y, geoPos);
-        int offset = computeOffset(pixelPosition, IMAGE_SIZE);
-        byte[] buffer = new byte[1];
-        stream.skip(offset);
-        stream.read(buffer);
-        stream.close();
-        final byte byteSample = buffer[0];
-        int sample = byteSample & 0xFF;
-        return (sample % 2 == 1);
-    }
-
-    int computeOffset(Point position, Point imageSize) {
-        if (position.x >= imageSize.x || position.y >= imageSize.y) {
-            throw new IllegalArgumentException(
-                    "Position '" + position.toString() + "' is not inside the image bounds '" + imageSize.toString() + "'.");
-        }
-        // divide by 8 because the image has been written in byte-chunks, but we want to read bit-wise
-        return (position.y * imageSize.x + position.x) / 8;
     }
 
     Point geoPosToPixel(int width, int height, GeoPos geoPos) {
