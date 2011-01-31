@@ -68,11 +68,15 @@ import java.util.zip.ZipOutputStream;
  */
 public class ShapeFileRasterizer {
 
-    Set<File> filesToDelete = new HashSet<File>();
+    private static final String ZIPFILE_NAME = "images.zip";
+    private final Set<File> tempFiles;
     private final File targetDir;
-    static final Point IMAGE_SIZE = new Point(800, 800);
+
+    private static final int SIDE_LENGTH = 1024;
+    private static final Point IMAGE_SIZE = new Point(SIDE_LENGTH, SIDE_LENGTH);
 
     public ShapeFileRasterizer(File targetDir) {
+        tempFiles = new HashSet<File>();
         this.targetDir = targetDir;
     }
 
@@ -80,7 +84,8 @@ public class ShapeFileRasterizer {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
         if (args.length != 2) {
-            throw new IllegalArgumentException("Directory containing shapefiles and target directory are needed.");
+            throw new IllegalArgumentException(
+                    "Error: two arguments needed. Argument 1: directory containing shapefiles. Argument 2: target directory.");
         }
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(targetDir);
         rasterizer.rasterizeShapefiles(resourceDir);
@@ -102,12 +107,18 @@ public class ShapeFileRasterizer {
                 File shapeFile = shapeFiles[i];
                 ZipFile zipFile = new ZipFile(shapeFile);
                 final Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                List<File> tempFiles = generateTempFiles(zipFile, entries);
-                for (File file : tempFiles) {
+                List<File> tempShapeFiles;
+                try {
+                    tempShapeFiles = generateTempFiles(zipFile, entries);
+                } catch (IOException e) {
+                    throw new IllegalStateException(
+                            "Error generating temp files from shapefile '" + shapeFile.getAbsolutePath() + "'.", e);
+                }
+                for (File file : tempShapeFiles) {
                     if (file.getName().endsWith("shp")) {
                         final BufferedImage image = createImage(file);
                         writeToFile(image, shapeFile.getName());
-                        deleteFilesToDelete();
+                        deleteTempFiles();
                     }
                 }
             }
@@ -144,8 +155,8 @@ public class ShapeFileRasterizer {
         renderer.paint(graphics, new Rectangle(0, 0, width, height),
                        new ReferencedEnvelope(lonMin, lonMax, latMin, latMax, crs));
 
-        filesToDelete.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".fix"));
-        filesToDelete.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".qix"));
+        tempFiles.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".fix"));
+        tempFiles.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".qix"));
         return landMaskImage;
     }
 
@@ -161,8 +172,7 @@ public class ShapeFileRasterizer {
         try {
             fileOutputStream.write(data);
         } catch (IOException e) {
-            // TODO - handle
-            e.printStackTrace();
+            throw new IllegalStateException("Error writing file '" + outputFile.getAbsolutePath() + "'.", e);
         } finally {
             try {
                 fileOutputStream.close();
@@ -173,65 +183,69 @@ public class ShapeFileRasterizer {
     }
 
     private void zipFiles() throws IOException {
-        byte[] buf = new byte[1];
+        byte[] buffer = new byte[1];
         final String outFilename = targetDir.getAbsolutePath() + File.separatorChar + WatermaskClassifier.ZIP_FILENAME;
-        ZipOutputStream out = new ZipOutputStream(new FileOutputStream(outFilename));
+        ZipOutputStream writer = new ZipOutputStream(new FileOutputStream(outFilename));
+        final ArrayList<InputStream> inputStreams = new ArrayList<InputStream>();
         try {
             final File[] files = targetDir.listFiles(new FilenameFilter() {
                 @Override
                 public boolean accept(File dir, String name) {
-                    return !"images.zip".equals(name);
+                    return !ZIPFILE_NAME.equals(name);
                 }
             });
             for (File file : files) {
-                FileInputStream in = new FileInputStream(file.getAbsolutePath());
-                out.putNextEntry(new ZipEntry(file.getName()));
-                int len;
-                while ((len = in.read(buf)) > 0) {
-                    out.write(buf, 0, len);
+                FileInputStream reader = new FileInputStream(file.getAbsolutePath());
+                inputStreams.add(reader);
+                writer.putNextEntry(new ZipEntry(file.getName()));
+                while (reader.read(buffer) != -1) {
+                    writer.write(buffer);
                 }
-                out.closeEntry();
-                in.close();
+                writer.closeEntry();
             }
         } catch (IOException e) {
-            // TODO - handle
+            throw new IllegalStateException("Error generating zip file '" + outFilename + "'.", e);
         } finally {
-            out.close();
+            for (InputStream reader : inputStreams) {
+                reader.close();
+            }
+            writer.close();
         }
     }
 
     private List<File> generateTempFiles(ZipFile zipFile, Enumeration<? extends ZipEntry> entries) throws
                                                                                                    IOException {
-        List<File> tempFiles = new ArrayList<File>();
+        List<File> files = new ArrayList<File>();
         while (entries.hasMoreElements()) {
             final ZipEntry entry = entries.nextElement();
             File file = readIntoTempFile(zipFile, entry);
-            tempFiles.add(file);
+            files.add(file);
         }
-        return tempFiles;
+        return files;
     }
 
     private File readIntoTempFile(ZipFile zipFile, ZipEntry entry) throws IOException {
         File file = new File(entry.getName());
-        filesToDelete.add(file);
+        tempFiles.add(file);
         byte[] buffer = new byte[1];
-        FileOutputStream fos = new FileOutputStream(file);
-        final InputStream inputStream = zipFile.getInputStream(entry);
-        while (inputStream.read(buffer) != -1) {
-            fos.write(buffer);
+        FileOutputStream writer = new FileOutputStream(file);
+        final InputStream reader = zipFile.getInputStream(entry);
+        while (reader.read(buffer) != -1) {
+            writer.write(buffer);
         }
-        fos.close();
+        writer.close();
         return file;
     }
 
-    private void deleteFilesToDelete() {
-        for (File tempFile : filesToDelete) {
+    @SuppressWarnings({"ResultOfMethodCallIgnored"})
+    private void deleteTempFiles() {
+        for (File tempFile : tempFiles) {
             tempFile.delete();
         }
-        filesToDelete.clear();
+        tempFiles.clear();
     }
 
-    static String getFilenameWithoutExtension(String fileName) {
+    private static String getFilenameWithoutExtension(String fileName) {
         int i = fileName.lastIndexOf('.');
         if (i > 0 && i < fileName.length() - 1) {
             return fileName.substring(0, i);
@@ -240,10 +254,10 @@ public class ShapeFileRasterizer {
     }
 
     private FeatureSource<SimpleFeatureType, SimpleFeature> getFeatureSource(URL url) throws IOException {
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put(ShapefileDataStoreFactory.URLP.key, url);
-        map.put(ShapefileDataStoreFactory.CREATE_SPATIAL_INDEX.key, Boolean.TRUE);
-        DataStore shapefileStore = DataStoreFinder.getDataStore(map);
+        Map<String, Object> parameterMap = new HashMap<String, Object>();
+        parameterMap.put(ShapefileDataStoreFactory.URLP.key, url);
+        parameterMap.put(ShapefileDataStoreFactory.CREATE_SPATIAL_INDEX.key, Boolean.TRUE);
+        DataStore shapefileStore = DataStoreFinder.getDataStore(parameterMap);
         String typeName = shapefileStore.getTypeNames()[0]; // Shape files do only have one type name
         FeatureSource<SimpleFeatureType, SimpleFeature> featureSource;
         featureSource = shapefileStore.getFeatureSource(typeName);
@@ -277,5 +291,4 @@ public class ShapeFileRasterizer {
 
         return style;
     }
-
 }
