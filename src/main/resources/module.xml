@@ -1,0 +1,43 @@
+<module>
+    <manifestVersion>1.0.0</manifestVersion>
+    <symbolicName>beam-watermask</symbolicName>
+    <version>1.0-SNAPSHOT</version>
+    <name>Land-Water mask</name>
+    <description>Accurate Land/Water-mask based on shape files.</description>
+
+    <vendor>Brockmann Consult GmbH</vendor>
+    <contactAddress>
+        Max Planck Str.2, 21502 Geesthacht (Germany)
+    </contactAddress>
+    <copyright>(C) 2011 by Brockmann Consult GmbH</copyright>
+    <url>http://envisat.esa.int/beam</url>
+    <licenseUrl>http://www.gnu.org/licenses/gpl.html</licenseUrl>
+
+    <changelog/>
+
+	<dependency>
+        <module>beam-gpf</module>
+    </dependency>
+	 <dependency>
+        <module>beam-visat</module>
+        <optional>true</optional>
+    </dependency>
+
+    <categories>Application,Processor</categories>
+
+    <extension point="beam-ui:actions">
+        <action>
+            <id>watermask</id>
+            <class>org.esa.beam.watermask.ui.WatermaskAction</class>
+            <text>Land/Water-mask...</text>
+            <shortDescr>
+                Accurate Land/Water-mask based on shape files.
+            </shortDescr>
+            <mnemonic/>
+            <parent>tool</parent>
+            <helpID>watermask</helpID>
+            <placeAfter/>
+        </action>
+    </extension>
+
+</module>
