@@ -32,6 +32,7 @@ import org.esa.beam.framework.gpf.annotations.TargetProduct;
 import org.esa.beam.util.ProductUtils;
 
 import java.awt.Rectangle;
+import java.io.IOException;
 
 /**
  * GPF-Operator responsible for creating a product, which contains a single band: a land/water-mask based on
@@ -50,7 +51,7 @@ public class WatermaskOp extends Operator {
 
     private final int SIDE_LENGTH = 1024;
 
-    @SourceProduct(alias = "sourceProduct", description = "The Product the land/water-mask shall be computed for.")
+    @SourceProduct(description = "The Product the land/water-mask shall be computed for.")
     private Product sourceProduct;
 
     @TargetProduct
@@ -64,7 +65,11 @@ public class WatermaskOp extends Operator {
         final int height = sourceProduct.getSceneRasterHeight();
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, width, height);
         targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
-        classifier = new WatermaskClassifier(SIDE_LENGTH);
+        try {
+            classifier = new WatermaskClassifier(SIDE_LENGTH);
+        } catch (IOException e) {
+            throw new OperatorException("Error creating Watermask Classifier.", e);
+        }
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 
