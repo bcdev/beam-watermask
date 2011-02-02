@@ -19,7 +19,7 @@ package org.esa.beam.watermask.operator;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
+import java.awt.Point;
 
 import static org.junit.Assert.*;
 
@@ -70,23 +70,47 @@ public class WatermaskClassifierTest {
         geoPos.lon = 179;
         geoPos.lat = 10;
         assertFalse(watermaskClassifier.isInRange("e000n09f.img", geoPos));
+        geoPos.lon = -2.2;
+        geoPos.lat = 45.3;
+        assertTrue(watermaskClassifier.isInRange("w002n45f.img", geoPos));
     }
 
     @Test
-    public void testFindingImage() throws IOException {
-        final WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(9.8, 0.6);
-        assertNotNull(watermaskClassifier.findImage(geoPos));
-    }
+    public void testComputeTileIndex() throws Exception {
+        Point tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(89.99, -179.99));
+        assertEquals(0, tileIndex.x);
+        assertEquals(0, tileIndex.y);
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testFindingNoImage() throws Exception {
-        WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(179, 10);
-        watermaskClassifier.findImage(geoPos);
-    }
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(89.0, -179.0));
+        assertEquals(0, tileIndex.x);
+        assertEquals(0, tileIndex.y);
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testFindingNoImage2() throws Exception {
-        WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(34.1, 20.1);
-        watermaskClassifier.findImage(geoPos);
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(88.99, -178.99));
+        assertEquals(1, tileIndex.x);
+        assertEquals(1, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(0.0, -0.1));
+        assertEquals(179, tileIndex.x);
+        assertEquals(89, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(0.0, 0.0));
+        assertEquals(180, tileIndex.x);
+        assertEquals(89, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(5.99, 0.99));
+        assertEquals(180, tileIndex.x);
+        assertEquals(84, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(4.99, -0.01));
+        assertEquals(179, tileIndex.x);
+        assertEquals(85, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(-89.0, 0.01));
+        assertEquals(180, tileIndex.x);
+        assertEquals(179, tileIndex.y);
+
+        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(-0.1, 179.0));
+        assertEquals(359, tileIndex.x);
+        assertEquals(90, tileIndex.y);
     }
 }

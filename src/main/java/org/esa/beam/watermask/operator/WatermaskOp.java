@@ -84,9 +84,9 @@ public class WatermaskOp extends Operator {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     final PixelPos pixelPos = new PixelPos(x, y);
                     geoPos = targetBand.getGeoCoding().getGeoPos(pixelPos, null);
-                    byte water = -1;
+                    int water = 2;
                     if (classifier.shapeFileExists(new WatermaskClassifier.GeoPos(geoPos.lat, geoPos.lon))) {
-                        water = (byte) (classifier.isWater(geoPos.lat, geoPos.lon) ? 1 : 0);
+                        water = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
 //                    } else {
 //                        water = getTypeOfAdjacentTiles(geoPos);
                     }
@@ -94,7 +94,7 @@ public class WatermaskOp extends Operator {
                 }
             }
         } catch (Exception e) {
-            throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.");
+            throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.", e);
         }
     }
 
@@ -104,12 +104,12 @@ public class WatermaskOp extends Operator {
         float topLat = (float) ((int)geoPos.lat + 0.0001);
         float bottomLat = (float) ((int)geoPos.lat - 0.0001);
 
-        byte result = 0;
+        int result = 0;
         try {
-            result += (byte) (classifier.isWater(geoPos.lat, leftLon) ? 1 : 0);
-            result += (byte) (classifier.isWater(geoPos.lat, rightLon) ? 1 : 0);
-            result += (byte) (classifier.isWater(topLat, geoPos.lon) ? 1 : 0);
-            result += (byte) (classifier.isWater(bottomLat, geoPos.lon) ? 1 : 0);
+            result += classifier.getWaterMaskSample(geoPos.lat, leftLon);
+            result += classifier.getWaterMaskSample(geoPos.lat, rightLon);
+            result += classifier.getWaterMaskSample(topLat, geoPos.lon);
+            result += classifier.getWaterMaskSample(bottomLat, geoPos.lon);
         } catch (IOException e) {
             // ok, handled by following 'if'-statement
         }
