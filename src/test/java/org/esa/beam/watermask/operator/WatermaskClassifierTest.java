@@ -32,7 +32,7 @@ public class WatermaskClassifierTest {
 
     @Before
     public void setUp() throws Exception {
-        watermaskClassifier = new WatermaskClassifier(800);
+        watermaskClassifier = new WatermaskClassifier(1024);
     }
 
     @Test

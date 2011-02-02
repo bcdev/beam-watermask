@@ -46,7 +46,8 @@ import java.io.IOException;
                   internal = false,
                   authors = "Thomas Storm",
                   copyright = "(c) 2011 by Brockmann Consult",
-                  description = "Land/Water-mask operator.")
+                  description = "Operator creating a target product with a single band containing a land/water-mask," +
+                                " which is based on SRTM-shapefiles and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
     private final int SIDE_LENGTH = 1024;
@@ -75,27 +76,52 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
+        System.out.println("WatermaskOp.computeTile: " + targetTile.getRectangle().toString());
         final Rectangle rectangle = targetTile.getRectangle();
-        int amount = rectangle.x * rectangle.y;
-        pm.beginTask("Creating land/water-mask...", amount);
-        for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
-            for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                final PixelPos pixelPos = new PixelPos(x, y);
-                final GeoPos geoPos = targetBand.getGeoCoding().getGeoPos(pixelPos, null);
-                byte water = -1;
-                try {
-                    water = (byte) (classifier.isWater(geoPos.lat, geoPos.lon) ? 1 : 0);
-                } catch (Exception e) {
-                    // TODO - don't set value to -1 but to values of adjacent tiles
-//                    if (!e.getMessage().startsWith("No image found")) {
-//                        System.err.println("WARNING: " + e.getMessage());
-//                    }
+        GeoPos geoPos = null;
+        try {
+            for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
+                for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
+                    final PixelPos pixelPos = new PixelPos(x, y);
+                    geoPos = targetBand.getGeoCoding().getGeoPos(pixelPos, null);
+                    byte water = -1;
+                    if (classifier.shapeFileExists(new WatermaskClassifier.GeoPos(geoPos.lat, geoPos.lon))) {
+                        water = (byte) (classifier.isWater(geoPos.lat, geoPos.lon) ? 1 : 0);
+//                    } else {
+//                        water = getTypeOfAdjacentTiles(geoPos);
+                    }
+                    targetTile.setSample(x, y, water);
                 }
-                targetTile.setSample(x, y, water);
-                pm.worked(1);
             }
+        } catch (Exception e) {
+            throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.");
         }
-        pm.done();
+    }
+
+    private byte getTypeOfAdjacentTiles(GeoPos geoPos) {
+        float leftLon = (float) ((int)geoPos.lon - 0.0001);
+        float rightLon = (float) ((int)geoPos.lon + 0.0001);
+        float topLat = (float) ((int)geoPos.lat + 0.0001);
+        float bottomLat = (float) ((int)geoPos.lat - 0.0001);
+
+        byte result = 0;
+        try {
+            result += (byte) (classifier.isWater(geoPos.lat, leftLon) ? 1 : 0);
+            result += (byte) (classifier.isWater(geoPos.lat, rightLon) ? 1 : 0);
+            result += (byte) (classifier.isWater(topLat, geoPos.lon) ? 1 : 0);
+            result += (byte) (classifier.isWater(bottomLat, geoPos.lon) ? 1 : 0);
+        } catch (IOException e) {
+            // ok, handled by following 'if'-statement
+        }
+
+        if (result == 4) {
+            return 1;
+        } else if (result == 0) {
+            return 0;
+        } else {
+//            if no unambiguous result is returned, take the value of the left adjacent tile
+            return getTypeOfAdjacentTiles(new GeoPos(geoPos.lat, leftLon));
+        }
     }
 
     public static class Spi extends OperatorSpi {
