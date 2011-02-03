@@ -27,6 +27,7 @@ import org.esa.beam.framework.gpf.OperatorException;
 import org.esa.beam.framework.gpf.OperatorSpi;
 import org.esa.beam.framework.gpf.Tile;
 import org.esa.beam.framework.gpf.annotations.OperatorMetadata;
+import org.esa.beam.framework.gpf.annotations.Parameter;
 import org.esa.beam.framework.gpf.annotations.SourceProduct;
 import org.esa.beam.framework.gpf.annotations.TargetProduct;
 import org.esa.beam.util.ProductUtils;
@@ -50,7 +51,8 @@ import java.io.IOException;
                                 " which is based on SRTM-shapefiles and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
-    private final int SIDE_LENGTH = 1024;
+    @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "150")
+    private int resolution;
 
     @SourceProduct(description = "The Product the land/water-mask shall be computed for.")
     private Product sourceProduct;
@@ -67,10 +69,11 @@ public class WatermaskOp extends Operator {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, width, height);
         targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
         try {
-            classifier = new WatermaskClassifier(SIDE_LENGTH);
+            classifier = new WatermaskClassifier(resolution);
         } catch (IOException e) {
             throw new OperatorException("Error creating Watermask Classifier.", e);
         }
+
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 
@@ -78,14 +81,15 @@ public class WatermaskOp extends Operator {
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
         System.out.println("WatermaskOp.computeTile: " + targetTile.getRectangle().toString());
         final Rectangle rectangle = targetTile.getRectangle();
-        GeoPos geoPos = null;
+        GeoPos geoPos = new GeoPos();
         try {
+            final PixelPos pixelPos = new PixelPos();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    final PixelPos pixelPos = new PixelPos(x, y);
-                    geoPos = targetBand.getGeoCoding().getGeoPos(pixelPos, null);
+                    pixelPos.setLocation(x,y);
+                    targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
                     int water = 2;
-                    if (classifier.shapeFileExists(new WatermaskClassifier.GeoPos(geoPos.lat, geoPos.lon))) {
+                    if (classifier.shapeFileExists(geoPos.lat, geoPos.lon)) {
                         water = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
 //                    } else {
 //                        water = getTypeOfAdjacentTiles(geoPos);

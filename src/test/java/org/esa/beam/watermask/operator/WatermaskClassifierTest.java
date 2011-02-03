@@ -32,7 +32,7 @@ public class WatermaskClassifierTest {
 
     @Before
     public void setUp() throws Exception {
-        watermaskClassifier = new WatermaskClassifier(1024);
+        watermaskClassifier = new WatermaskClassifier(500);
     }
 
     @Test
@@ -112,5 +112,42 @@ public class WatermaskClassifierTest {
         tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(-0.1, 179.0));
         assertEquals(359, tileIndex.x);
         assertEquals(90, tileIndex.y);
+    }
+
+    @Test
+    public void testGeoPosToPixel() throws Exception {
+        WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(0.0, 0.0);
+        Point pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        assertEquals(0, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+
+        geoPos.lon = 0.5;
+        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        assertEquals(512, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+
+        geoPos.lon = 0.0009765;
+        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        assertEquals(0, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+
+        geoPos.lon = 0.0009766;
+        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        assertEquals(1, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+
+        geoPos.lon = 0.99999;
+        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        assertEquals(1023, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+    }
+
+    @Test
+    public void testToBinaryString() throws Exception {
+        assertEquals("00000000", WatermaskClassifier.toBinaryString(0));
+        assertEquals("00001010", WatermaskClassifier.toBinaryString(10));
+        assertEquals("00011001", WatermaskClassifier.toBinaryString(25));
+        assertEquals("01000011", WatermaskClassifier.toBinaryString(67));
+        assertEquals("01111111", WatermaskClassifier.toBinaryString(127));
     }
 }

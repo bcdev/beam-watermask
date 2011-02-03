@@ -31,10 +31,7 @@ public class WatermaskAction extends AbstractVisatAction {
 
     @Override
     public void actionPerformed(CommandEvent commandEvent) {
-        final DefaultSingleTargetProductDialog dialog = new DefaultSingleTargetProductDialog(
-                OperatorSpi.getOperatorAlias(WatermaskOp.class), getAppContext(),
-                "Accurate Land/Water-mask",
-                "watermask");
-        dialog.show();
+        new DefaultSingleTargetProductDialog(OperatorSpi.getOperatorAlias(WatermaskOp.class), getAppContext(),
+                                             "Accurate Land/Water-mask", "watermask").show();
     }
 }

@@ -17,6 +17,7 @@
 package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.VirtualDir;
+import org.esa.beam.watermask.util.ShapeFileRasterizer;
 
 import java.awt.Point;
 import java.awt.image.DataBuffer;
@@ -48,53 +49,49 @@ public class WatermaskClassifier {
 
     private List<Bounds> banishedGeoPos = new ArrayList<Bounds>();
 
-    public WatermaskClassifier(int sideLength) throws IOException {
-        IMAGE_LENGTH = sideLength;
+    public WatermaskClassifier(int resolution) throws IOException {
+        IMAGE_LENGTH = ShapeFileRasterizer.computeSideLength(resolution);
+        String filename = resolution + "m.zip";
         final URL someResource = getClass().getResource("images.zip");
         final Properties properties = new Properties();
-        properties.setProperty("width", "368640");
-        properties.setProperty("height", "184320");
-        properties.setProperty("tileWidth", "" + (int) (IMAGE_LENGTH / Math.sqrt(8.0)));
-        properties.setProperty("tileHeight", "" + (int) (IMAGE_LENGTH / Math.sqrt(8.0)));
-        // TODO - read properties from file
+        int width = IMAGE_LENGTH * 360;
+        int height = IMAGE_LENGTH * 180;
+        properties.setProperty("width", "" + width);
+        properties.setProperty("height", "" + height);
+        properties.setProperty("tileWidth", "" + IMAGE_LENGTH);
+        properties.setProperty("tileHeight", "" + IMAGE_LENGTH);
+        properties.setProperty("dataType", "" + DataBuffer.TYPE_BYTE);
         image = TiledShapefileOpImage.create(VirtualDir.create(new File(someResource.getFile()).getParentFile()),
-                                             properties);
+                                             properties, filename);
     }
 
     public int getWaterMaskSample(float lat, float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
-        final Point pixelPosition = geoPosToPixel((int) (IMAGE_LENGTH / Math.sqrt(8.0)),
-                                                  (int) (IMAGE_LENGTH / Math.sqrt(8.0)), geoPos);
         final Point tileIndex = computeTileIndex(geoPos);
         final Raster tile = image.getTile(tileIndex.x, tileIndex.y);
         final SampleModel sampleModel = tile.getSampleModel();
         final DataBuffer dataBuffer = tile.getDataBuffer();
-        final int sample = sampleModel.getSample(pixelPosition.x, pixelPosition.y, 0, dataBuffer);
-        int bitOffset = computeBitOffset(geoPos);
-        final String string = toBinaryString(sample);
-        return Integer.parseInt("" + string.charAt(bitOffset));
+        final Point pixelPosition = geoPosToPixel(IMAGE_LENGTH, IMAGE_LENGTH, geoPos);
+        int x = pixelPosition.x / 8;
+        int y = pixelPosition.y / 8;
+        final int sample = sampleModel.getSample(x, y, 0, dataBuffer);
+        int bitOffset = 7 - (pixelPosition.x % 8);
+        final String sampleString = toBinaryString(sample);
+        return Integer.parseInt("" + sampleString.charAt(bitOffset));
     }
 
     public boolean isWater(float lat, float lon) throws IOException {
         return getWaterMaskSample(lat, lon) == 1;
     }
 
-    private int computeBitOffset(GeoPos geoPos) {
-        int offset = geoPosToPixel((int) (IMAGE_LENGTH * Math.sqrt(8.0)),
-                                   (int) (IMAGE_LENGTH * Math.sqrt(8.0)),
-                                   geoPos).x;
-        offset = 7 - offset % 8;
-        return offset;
-    }
-
-    static String toBinaryString(int n) {
-        StringBuilder sb = new StringBuilder("00000000");
+    static String toBinaryString(int input) {
+        StringBuilder result = new StringBuilder("00000000");
         for (int bit = 0; bit < 8; bit++) {
-            if (((n >> bit) & 1) > 0) {
-                sb.setCharAt(7 - bit, '1');
+            if (((input >> bit) & 1) > 0) {
+                result.setCharAt(7 - bit, '1');
             }
         }
-        return sb.toString();
+        return result.toString();
     }
 
 
@@ -122,7 +119,8 @@ public class WatermaskClassifier {
         return new Point(xCoord, yCoord);
     }
 
-    boolean shapeFileExists(GeoPos geoPos) {
+    boolean shapeFileExists(float lat, float lon) {
+        final GeoPos geoPos = new GeoPos(lat, lon);
         final Bounds bounds = new Bounds(geoPos);
         if (banishedGeoPos.contains(bounds)) {
             return false;
@@ -177,7 +175,7 @@ public class WatermaskClassifier {
         }
     }
 
-    static class GeoPos {
+    private static class GeoPos {
 
         double lat;
         double lon;

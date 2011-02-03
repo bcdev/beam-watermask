@@ -5,5 +5,8 @@
         <sources>
             <sourceProduct>${sourceProduct}</sourceProduct>
         </sources>
+        <parameters>
+            <resolution>150</resolution>
+        </parameters>
     </node>
 </graph>

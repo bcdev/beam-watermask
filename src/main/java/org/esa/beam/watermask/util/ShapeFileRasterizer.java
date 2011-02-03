@@ -73,8 +73,7 @@ public class ShapeFileRasterizer {
     private final Set<File> tempFiles;
     private final File targetDir;
 
-    private static final int SIDE_LENGTH = 1024;
-    private static final Point IMAGE_SIZE = new Point(SIDE_LENGTH, SIDE_LENGTH);
+    private static Point tileSize;
 
     public ShapeFileRasterizer(File targetDir) {
         tempFiles = new HashSet<File>();
@@ -84,12 +83,23 @@ public class ShapeFileRasterizer {
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
-        if (args.length != 2) {
+        int sideLength = computeSideLength(Integer.parseInt(args[2]));
+        tileSize = new Point(sideLength, sideLength);
+        if (args.length != 3) {
             throw new IllegalArgumentException(
-                    "Error: two arguments needed. Argument 1: directory containing shapefiles. Argument 2: target directory.");
+                    "Error: three arguments needed. 1) directory containing shapefiles. 2) target " +
+                    "directory. 3) resolution in meters / pixel");
         }
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(targetDir);
         rasterizer.rasterizeShapefiles(resourceDir);
+    }
+
+    public static int computeSideLength(int resolution) {
+        final int pixelXCount = 40024000 / resolution;
+        final int pixelXCountPerTile = pixelXCount / 360;
+        // these two lines needed to create a multiple of 8
+        final int temp = pixelXCountPerTile / 8;
+        return temp * 8;
     }
 
     void rasterizeShapefiles(File dir) throws IOException {
@@ -129,7 +139,7 @@ public class ShapeFileRasterizer {
                 rasterizeShapefiles(subDir);
             }
         }
-        zipFiles();
+//        zipFiles();
     }
 
     BufferedImage createImage(File shapeFile) throws IOException {
@@ -140,8 +150,8 @@ public class ShapeFileRasterizer {
         final FeatureSource<SimpleFeatureType, SimpleFeature> featureSource = getFeatureSource(url);
         context.addLayer(featureSource, createPolygonStyle());
 
-        int width = IMAGE_SIZE.x;
-        int height = IMAGE_SIZE.y;
+        int width = tileSize.x;
+        int height = tileSize.y;
 
         BufferedImage landMaskImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY);
         Graphics2D graphics = landMaskImage.createGraphics();

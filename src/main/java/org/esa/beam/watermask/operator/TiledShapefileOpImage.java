@@ -35,24 +35,23 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Responsible for holding the data in tiles.
+ * Responsible for tiled access on the data.
  *
  * @author Thomas Storm
  */
 public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private VirtualDir imageDir;
-    private ImageInputStreamFactory inputStreamFactory;
-    private boolean disposed;
+    private String filename;
 
-    public static TiledShapefileOpImage create(VirtualDir imageDir, Properties defaultImageProperties) throws
-                                                                                                       IOException {
+    public static TiledShapefileOpImage create(VirtualDir imageDir,
+                                               Properties defaultImageProperties,
+                                               String filename) throws IOException {
         final ImageHeader imageHeader = ImageHeader.load(new File(imageDir.getBasePath()), defaultImageProperties);
-        return new TiledShapefileOpImage(imageHeader, null, imageDir);
+        return new TiledShapefileOpImage(imageHeader, null, imageDir, filename);
     }
 
-
-    private TiledShapefileOpImage(ImageHeader imageHeader, Map configuration, VirtualDir imageDir) {
+    private TiledShapefileOpImage(ImageHeader imageHeader, Map configuration, VirtualDir imageDir, String filename) {
         super(imageHeader.getImageLayout(),
               configuration,
               imageHeader.getImageLayout().getSampleModel(null),
@@ -61,7 +60,7 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
               imageHeader.getImageLayout().getWidth(null),
               imageHeader.getImageLayout().getHeight(null));
         this.imageDir = imageDir;
-        inputStreamFactory = new RawZipImageInputStreamFactory();
+        this.filename = filename;
         if (getTileCache() == null) {
             setTileCache(JAI.getDefaultInstance().getTileCache());
         }
@@ -80,23 +79,13 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
     }
 
     private void readRawDataTile(int tileX, int tileY, WritableRaster targetRaster) throws IOException {
-        final InputStream inputStream = inputStreamFactory.createImageInputStream(tileX, tileY);
+        final InputStream inputStream = createImageInputStream(tileX, tileY);
         try {
             final byte[] data = ((DataBufferByte) targetRaster.getDataBuffer()).getData();
             inputStream.read(data);
         } finally {
             inputStream.close();
         }
-    }
-
-    @Override
-    public synchronized void dispose() {
-        if (disposed) {
-            return;
-        }
-        disposed = true;
-        inputStreamFactory = null;
-        super.dispose();
     }
 
     static String getTileBasename(int tileX, int tileY) {
@@ -143,25 +132,17 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         return basename.toString();
     }
 
-    private interface ImageInputStreamFactory {
-
-        InputStream createImageInputStream(int tileX, int tileY) throws IOException;
-    }
-
-    private class RawZipImageInputStreamFactory implements ImageInputStreamFactory {
-
-        public InputStream createImageInputStream(int tileX, int tileY) throws IOException {
-            final String entryNameTag = getTileBasename(tileX, tileY);
-            final File file = new File(imageDir.getBasePath(), "images.zip");
-            final ZipFile zipFile = new ZipFile(file);
-            final Enumeration<? extends ZipEntry> entries = zipFile.entries();
-            while (entries.hasMoreElements()) {
-                final ZipEntry zipEntry = entries.nextElement();
-                if (zipEntry.getName().startsWith(entryNameTag)) {
-                    return zipFile.getInputStream(zipEntry);
-                }
+    private InputStream createImageInputStream(int tileX, int tileY) throws IOException {
+        final String entryNameTag = getTileBasename(tileX, tileY);
+        final File file = new File(imageDir.getBasePath(), filename);
+        final ZipFile zipFile = new ZipFile(file);
+        final Enumeration<? extends ZipEntry> entries = zipFile.entries();
+        while (entries.hasMoreElements()) {
+            final ZipEntry zipEntry = entries.nextElement();
+            if (zipEntry.getName().startsWith(entryNameTag)) {
+                return zipFile.getInputStream(zipEntry);
             }
-            throw new IOException("No image '" + entryNameTag + "X.img' found.");
         }
+        throw new IOException("No image '" + entryNameTag + "X.img' found.");
     }
 }
