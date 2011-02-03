@@ -51,7 +51,8 @@ import java.io.IOException;
                                 " which is based on SRTM-shapefiles and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
-    @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "150")
+    @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "150",
+               valueSet = {"50", "150", "500"})
     private int resolution;
 
     @SourceProduct(description = "The Product the land/water-mask shall be computed for.")
@@ -64,6 +65,9 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void initialize() throws OperatorException {
+        if (sourceProduct.getGeoCoding() == null) {
+            throw new OperatorException("Input product is not geo-referenced.");
+        }
         final int width = sourceProduct.getSceneRasterWidth();
         final int height = sourceProduct.getSceneRasterHeight();
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, width, height);
@@ -86,13 +90,13 @@ public class WatermaskOp extends Operator {
             final PixelPos pixelPos = new PixelPos();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    pixelPos.setLocation(x,y);
+                    pixelPos.setLocation(x, y);
                     targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
-                    int water = 2;
+                    int water;
                     if (classifier.shapeFileExists(geoPos.lat, geoPos.lon)) {
                         water = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
-//                    } else {
-//                        water = getTypeOfAdjacentTiles(geoPos);
+                    } else {
+                        water = getTypeOfAdjacentTiles(geoPos.lat, geoPos.lon);
                     }
                     targetTile.setSample(x, y, water);
                 }
@@ -102,30 +106,43 @@ public class WatermaskOp extends Operator {
         }
     }
 
-    private byte getTypeOfAdjacentTiles(GeoPos geoPos) {
-        float leftLon = (float) ((int)geoPos.lon - 0.0001);
-        float rightLon = (float) ((int)geoPos.lon + 0.0001);
-        float topLat = (float) ((int)geoPos.lat + 0.0001);
-        float bottomLat = (float) ((int)geoPos.lat - 0.0001);
+    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon) {
+        return getTypeOfAdjacentTiles(inputLat, inputLon, 0);
+    }
 
-        int result = 0;
+    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon, int searchingDirection) {
+        float lat = inputLat;
+        float lon = inputLon;
+        switch (searchingDirection) {
+            case 0:
+                // to the top
+                lat = (float) ((int) lat + 1.0001);
+                break;
+            case 1:
+                // to the left
+                lon = (float) ((int) lon - 0.0001);
+                break;
+            case 2:
+                // to the bottom
+                lat = (float) ((int) lat - 0.0001);
+                break;
+            case 3:
+                // to the right
+                lon = (float) ((int) lon + 1.0001);
+                break;
+        }
+
         try {
-            result += classifier.getWaterMaskSample(geoPos.lat, leftLon);
-            result += classifier.getWaterMaskSample(geoPos.lat, rightLon);
-            result += classifier.getWaterMaskSample(topLat, geoPos.lon);
-            result += classifier.getWaterMaskSample(bottomLat, geoPos.lon);
-        } catch (IOException e) {
-            // ok, handled by following 'if'-statement
+            if (classifier.shapeFileExists(lat, lon)) {
+                return (byte) classifier.getWaterMaskSample(lat, lon);
+            } else {
+                return getTypeOfAdjacentTiles(lat, lon, (int) (Math.random() * 4));
+            }
+        } catch (IOException ignore) {
+            // should never come here, next line for debugging reasons only
+            ignore.printStackTrace();
         }
-
-        if (result == 4) {
-            return 1;
-        } else if (result == 0) {
-            return 0;
-        } else {
-//            if no unambiguous result is returned, take the value of the left adjacent tile
-            return getTypeOfAdjacentTiles(new GeoPos(geoPos.lat, leftLon));
-        }
+        return -1; // should never come here
     }
 
     public static class Spi extends OperatorSpi {
