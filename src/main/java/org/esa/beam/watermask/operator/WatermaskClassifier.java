@@ -92,7 +92,7 @@ public class WatermaskClassifier {
     public int getWaterMaskSample(float lat, float lon) throws IOException {
         final String shapefile = getShapeFile(lat, lon);
         if (shapefile == null) {
-            return fill ? getTypeOfAdjacentTiles(lat, lon) : 2;
+            return fill ? getTypeOfAdjacentTile(lat, lon) : 2;
         }
         image.setShapefile(shapefile);
         final double pixelSize = 360.0 / image.getWidth();
@@ -117,25 +117,25 @@ public class WatermaskClassifier {
         return getWaterMaskSample(lat, lon) == 1;
     }
 
-    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon) {
+    private byte getTypeOfAdjacentTile(float inputLat, float inputLon) {
         float lat = inputLat;
         float lon = inputLon;
         switch (searchingDirection) {
             case 0:
                 // to the top
-                lat = (float) ((int) lat + 1.000001);
+                lat = (float) ((int) lat + 1.0001);
                 break;
             case 1:
                 // to the left
-                lon = (float) ((int) lon - 0.000001);
+                lon = (float) ((int) lon - 0.0001);
                 break;
             case 2:
                 // to the bottom
-                lat = (float) ((int) lat - 0.000001);
+                lat = (float) ((int) lat - 0.0001);
                 break;
             case 3:
                 // to the right
-                lon = (float) ((int) lon + 1.000001);
+                lon = (float) ((int) lon + 1.0001);
                 break;
         }
 

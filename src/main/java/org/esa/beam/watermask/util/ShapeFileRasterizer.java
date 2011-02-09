@@ -122,7 +122,7 @@ public class ShapeFileRasterizer {
         });
         File[] shapeFiles = dir.listFiles(new FilenameFilter() {
             public boolean accept(File dir, String name) {
-                return name.endsWith(".zip");
+                return name.endsWith(".zip") && name.startsWith("e004n43e");
             }
         });
         if (shapeFiles != null) {
