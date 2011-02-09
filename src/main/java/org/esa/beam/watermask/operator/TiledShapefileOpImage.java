@@ -41,7 +41,6 @@ import java.util.zip.ZipFile;
 public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private ZipFile zipFile;
-    private String shapefile;
 
     public static TiledShapefileOpImage create(VirtualDir imageDir,
                                                Properties defaultImageProperties,
@@ -92,8 +91,13 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         final InputStream inputStream = createImageInputStream(tileX, tileY);
         try {
             final byte[] data = ((DataBufferByte) targetRaster.getDataBuffer()).getData();
-            for( int i = 0; i < data.length; i++ ) {
-                data[i] = (byte) inputStream.read();
+            int count = 0;
+            int amount = 1024;
+            while( count < data.length) {
+                if( count + amount > data.length ) {
+                    amount = data.length - count;
+                }
+                count += inputStream.read(data, count, amount);
             }
         } finally {
             inputStream.close();
@@ -101,11 +105,52 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
     }
 
     private InputStream createImageInputStream(int tileX, int tileY) throws IOException {
+        String shapefile = getTilename(tileX, tileY);
         final ZipEntry entry = zipFile.getEntry(shapefile);
         return zipFile.getInputStream(entry);
     }
 
-    public void setShapefile(String shapefile) {
-        this.shapefile = shapefile;
+    static String getTilename(int tileX, int tileY) {
+        if (tileX < 0 || tileX > 379 || tileY < 0 || tileY > 179) {
+            throw new IllegalArgumentException(
+                    "tileX has to be in [0...379], is " + tileX + "; tileY has to be in [0...179], is " + tileY + ".");
+        }
+        StringBuilder basename = new StringBuilder();
+
+        String horizontalToken;
+        String horizonatlInt;
+        if (tileX <= 179) {
+            horizonatlInt = "" + Math.abs(tileX - 179);
+            horizontalToken = "w";
+        } else {
+            horizonatlInt = "" + Math.abs(tileX - 180);
+            horizontalToken = "e";
+        }
+        if (horizonatlInt.length() == 2) {
+            horizonatlInt = "0" + horizonatlInt;
+        } else if (horizonatlInt.length() == 1) {
+            horizonatlInt = "00" + horizonatlInt;
+        }
+
+        String verticalToken;
+        String verticalInt;
+        if (tileY <= 89) {
+            verticalInt = "" + Math.abs(tileY - 89);
+            verticalToken = "n";
+        } else {
+            verticalInt = "" + Math.abs(tileY - 90);
+            verticalToken = "s";
+        }
+        if (verticalInt.length() == 1) {
+            verticalInt = "0" + verticalInt;
+        }
+
+        basename.append(horizontalToken);
+        basename.append(horizonatlInt);
+        basename.append(verticalToken);
+        basename.append(verticalInt);
+        basename.append(".img");
+
+        return basename.toString();
     }
 }

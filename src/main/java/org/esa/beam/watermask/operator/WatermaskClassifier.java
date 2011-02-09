@@ -94,7 +94,6 @@ public class WatermaskClassifier {
         if (shapefile == null) {
             return fill ? getTypeOfAdjacentTile(lat, lon) : 2;
         }
-        image.setShapefile(shapefile);
         final double pixelSize = 360.0 / image.getWidth();
         final int x = (int) Math.floor((lon + 180.0) / pixelSize);
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
