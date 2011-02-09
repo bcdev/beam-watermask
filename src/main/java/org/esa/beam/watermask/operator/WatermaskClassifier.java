@@ -20,11 +20,7 @@ import com.bc.ceres.core.VirtualDir;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.watermask.util.ShapeFileRasterizer;
 
-import javax.imageio.ImageIO;
 import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
@@ -79,8 +75,6 @@ public class WatermaskClassifier {
         properties.setProperty("height", "" + height);
         properties.setProperty("tileWidth", "" + tileSize);
         properties.setProperty("tileHeight", "" + tileSize);
-        properties.setProperty("dataType", "" + DataBuffer.TYPE_BYTE);
-        properties.setProperty("numberOfBits", "1");
         image = TiledShapefileOpImage.create(VirtualDir.create(new File(someResource.getFile()).getParentFile()),
                                              properties, filename);
     }
@@ -96,6 +90,9 @@ public class WatermaskClassifier {
      * @throws IOException If some IO-error occurs reading the source file.
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
+        if( lat > 49 && lat < 50 && lon > 0 && lon < 1 ) {
+            int blah = 5;
+        }
         final String shapefile = getShapeFile(lat, lon);
         if (shapefile == null) {
             return fill ? getTypeOfAdjacentTiles(lat, lon) : 2;
@@ -106,8 +103,6 @@ public class WatermaskClassifier {
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
         final Point tileIndex = new Point(x / tileSize, y / tileSize);
         final Raster tile = image.getTile(tileIndex.x, tileIndex.y);
-        final BufferedImage image1 = image.getAsBufferedImage(new Rectangle(tile.getMinX(), tile.getMinY(), tileSize, tileSize), null);
-        ImageIO.write(image1, "png", new File("C:\\temp\\output2.png"));
         return tile.getSample(x, y, 0);
     }
 
@@ -241,9 +236,17 @@ public class WatermaskClassifier {
 
         Bounds(GeoPos geoPos) {
             minX = (int) geoPos.lon;
-            maxX = minX + 1;
             minY = (int) geoPos.lat;
-            maxY = minY + 1;
+            if (geoPos.lon < 0) {
+                maxX = minX - 1;
+            } else {
+                maxX = minX + 1;
+            }
+            if (geoPos.lat < 0) {
+                maxY = minY - 1;
+            } else {
+                maxY = minY + 1;
+            }
         }
 
         @Override

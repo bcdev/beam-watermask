@@ -38,6 +38,12 @@ public class WatermaskClassifierTest {
     @Test
     public void testIsWater() throws Exception {
 
+        assertFalse(watermaskClassifier.isWater(49.68f, 0.581f));
+        assertTrue(watermaskClassifier.isWater(49.434505f, 0.156014f));
+
+        assertTrue(watermaskClassifier.isWater(49.33615f, -0.0096f));
+        assertFalse(watermaskClassifier.isWater(49.32062f, -0.005918f));
+
         assertFalse(watermaskClassifier.isWater(46.5f, 0.5f));
 
         assertTrue(watermaskClassifier.isWater(5.01f, 0.01f));
@@ -73,13 +79,19 @@ public class WatermaskClassifierTest {
         assertTrue(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 0.30f));
         assertFalse(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 0.30f));
 
+        assertTrue(WatermaskClassifier.isInRange("e000n49.img", 49.993961334228516f, 0.006230226717889309f));
+        assertFalse(WatermaskClassifier.isInRange("w001n49.img", 51.007f, 0.30f));
+
         assertTrue(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 1.30f));
         assertFalse(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 1.30f));
+
+        assertTrue(WatermaskClassifier.isInRange("e000n45.img", 45.001f, 0.005f));
+        assertFalse(WatermaskClassifier.isInRange("w000n45.img", 45.001f, 0.005f));
 
         // south-west
 
         assertTrue(WatermaskClassifier.isInRange("w001s01.img", -0.01f, -0.30f));
-        assertFalse(WatermaskClassifier.isInRange("w000s00.img", -0.01f, -0.30f));
+        assertFalse(WatermaskClassifier.isInRange("w000s01.img", -0.01f, -0.30f));
 
         assertTrue(WatermaskClassifier.isInRange("w002s02.img", -1.01f, -1.30f));
         assertFalse(WatermaskClassifier.isInRange("w001s01.img", -1.01f, -1.30f));
