@@ -16,7 +16,7 @@
 
 package org.esa.beam.watermask.operator;
 
-import com.bc.ceres.core.VirtualDir;
+import com.bc.ceres.core.Assert;
 import org.esa.beam.jai.ImageHeader;
 
 import javax.media.jai.JAI;
@@ -25,10 +25,8 @@ import java.awt.Point;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Map;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -42,25 +40,22 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private ZipFile zipFile;
 
-    public static TiledShapefileOpImage create(VirtualDir imageDir,
-                                               Properties defaultImageProperties,
-                                               String filename) throws IOException {
-        final ImageHeader imageHeader = ImageHeader.load(new File(imageDir.getBasePath()), defaultImageProperties);
-        return new TiledShapefileOpImage(imageHeader, null, imageDir, filename);
+    public static TiledShapefileOpImage create(Properties defaultImageProperties,
+                                               String zipfilePath) throws IOException {
+
+        final ImageHeader imageHeader = ImageHeader.load(defaultImageProperties, null);
+        return new TiledShapefileOpImage(imageHeader, zipfilePath);
     }
 
-    private TiledShapefileOpImage(ImageHeader imageHeader, Map configuration, VirtualDir imageDir,
-                                  String filename) throws
-                                                   IOException {
+    private TiledShapefileOpImage(ImageHeader imageHeader, String zipfilePath) throws IOException {
         super(imageHeader.getImageLayout(),
-              configuration,
+              null,
               imageHeader.getImageLayout().getSampleModel(null),
               imageHeader.getImageLayout().getMinX(null),
               imageHeader.getImageLayout().getMinY(null),
               imageHeader.getImageLayout().getWidth(null),
               imageHeader.getImageLayout().getHeight(null));
-        final File file = new File(imageDir.getBasePath(), filename);
-        zipFile = new ZipFile(file);
+        zipFile = new ZipFile(zipfilePath);
         if (getTileCache() == null) {
             setTileCache(JAI.getDefaultInstance().getTileCache());
         }
@@ -88,23 +83,24 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
     }
 
     private void readRawDataTile(WritableRaster targetRaster, int tileX, int tileY) throws IOException {
-        final InputStream inputStream = createImageInputStream(tileX, tileY);
+        final InputStream inputStream = createInputStream(tileX, tileY);
         try {
             final byte[] data = ((DataBufferByte) targetRaster.getDataBuffer()).getData();
             int count = 0;
-            int amount = 1024;
-            while( count < data.length) {
-                if( count + amount > data.length ) {
+            int amount = data.length;
+            while (count < data.length) {
+                if (count + amount > data.length) {
                     amount = data.length - count;
                 }
                 count += inputStream.read(data, count, amount);
             }
+            Assert.state(count == data.length, "Not all data have been read.");
         } finally {
             inputStream.close();
         }
     }
 
-    private InputStream createImageInputStream(int tileX, int tileY) throws IOException {
+    private InputStream createInputStream(int tileX, int tileY) throws IOException {
         String shapefile = getTilename(tileX, tileY);
         final ZipEntry entry = zipFile.getEntry(shapefile);
         return zipFile.getInputStream(entry);
