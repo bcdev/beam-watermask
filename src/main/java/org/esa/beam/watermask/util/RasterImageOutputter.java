@@ -35,7 +35,7 @@ import java.util.zip.ZipFile;
  */
 public class RasterImageOutputter {
 
-    private static final int TILE_WIDTH = ShapeFileRasterizer.computeSideLength(150);
+    private static final int TILE_WIDTH = ShapeFileRasterizer.computeSideLength(50);
 
     public static void main(String[] args) throws IOException {
 

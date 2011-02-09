@@ -46,6 +46,9 @@ public class WatermaskClassifierTest {
     @Test
     public void testIsWater() throws Exception {
 
+        assertFalse(classifier.isWater(30.30539f, 111.55285f));
+        assertTrue(classifier.isWater(30.269484f, 111.55418f));
+
         assertFalse(classifier.isWater(49.68f, 0.581f));
         assertTrue(classifier.isWater(49.434505f, 0.156014f));
 
@@ -95,6 +98,9 @@ public class WatermaskClassifierTest {
 
         assertTrue(WatermaskClassifier.isInRange("e000n45.img", 45.001f, 0.005f));
         assertFalse(WatermaskClassifier.isInRange("w000n45.img", 45.001f, 0.005f));
+
+        assertTrue(WatermaskClassifier.isInRange("e111n30.img", 30.27f, 111.581f));
+        assertFalse(WatermaskClassifier.isInRange("e111n30.img", 29.01f, 112.01f));
 
         // south-west
 
