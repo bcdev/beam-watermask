@@ -52,10 +52,14 @@ import java.io.IOException;
 public class WatermaskOp extends Operator {
 
     @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "150",
-               valueSet = {"50", "150", "500"})
+               valueSet = {"50", "100", "150", "500"})
     private int resolution;
 
-    @SourceProduct(description = "The Product the land/water-mask shall be computed for.")
+    @Parameter(description = "Automatically fill pixels where no shapefile exists (experimental code)",
+               defaultValue = "false", valueSet = {"true", "false"})
+    private boolean fill;
+
+    @SourceProduct(alias = "Name", description = "The Product the land/water-mask shall be computed for.")
     private Product sourceProduct;
 
     @TargetProduct
@@ -65,20 +69,12 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void initialize() throws OperatorException {
-        if (sourceProduct.getGeoCoding() == null) {
-            throw new OperatorException("Input product is not geo-referenced.");
-        }
-        final int width = sourceProduct.getSceneRasterWidth();
-        final int height = sourceProduct.getSceneRasterHeight();
-        targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, width, height);
-        targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
+        initTargetProduct();
         try {
-            classifier = new WatermaskClassifier(resolution);
+            classifier = new WatermaskClassifier(resolution, fill);
         } catch (IOException e) {
             throw new OperatorException("Error creating Watermask Classifier.", e);
         }
-
-        ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 
     @Override
@@ -92,13 +88,7 @@ public class WatermaskOp extends Operator {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     pixelPos.setLocation(x, y);
                     targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
-                    int water;
-                    if (classifier.shapeFileExists(geoPos.lat, geoPos.lon)) {
-                        water = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
-                    } else {
-                        water = getTypeOfAdjacentTiles(geoPos.lat, geoPos.lon);
-                    }
-                    targetTile.setSample(x, y, water);
+                    targetTile.setSample(x, y, classifier.getWaterMaskSample(geoPos.lat, geoPos.lon));
                 }
             }
         } catch (Exception e) {
@@ -106,43 +96,15 @@ public class WatermaskOp extends Operator {
         }
     }
 
-    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon) {
-        return getTypeOfAdjacentTiles(inputLat, inputLon, 0);
-    }
-
-    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon, int searchingDirection) {
-        float lat = inputLat;
-        float lon = inputLon;
-        switch (searchingDirection) {
-            case 0:
-                // to the top
-                lat = (float) ((int) lat + 1.0001);
-                break;
-            case 1:
-                // to the left
-                lon = (float) ((int) lon - 0.0001);
-                break;
-            case 2:
-                // to the bottom
-                lat = (float) ((int) lat - 0.0001);
-                break;
-            case 3:
-                // to the right
-                lon = (float) ((int) lon + 1.0001);
-                break;
+    private void initTargetProduct() {
+        if (sourceProduct.getGeoCoding() == null) {
+            throw new OperatorException("Input product is not geo-referenced.");
         }
-
-        try {
-            if (classifier.shapeFileExists(lat, lon)) {
-                return (byte) classifier.getWaterMaskSample(lat, lon);
-            } else {
-                return getTypeOfAdjacentTiles(lat, lon, (int) (Math.random() * 4));
-            }
-        } catch (IOException ignore) {
-            // should never come here, next line for debugging reasons only
-            ignore.printStackTrace();
-        }
-        return -1; // should never come here
+        targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
+                                    sourceProduct.getSceneRasterHeight());
+        final Band lwBand = targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
+        lwBand.setNoDataValue(2);
+        ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 
     public static class Spi extends OperatorSpi {

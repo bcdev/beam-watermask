@@ -32,122 +32,104 @@ public class WatermaskClassifierTest {
 
     @Before
     public void setUp() throws Exception {
-        watermaskClassifier = new WatermaskClassifier(500);
+        watermaskClassifier = new WatermaskClassifier(50, false);
     }
 
     @Test
     public void testIsWater() throws Exception {
-        assertTrue(watermaskClassifier.isWater(5.0f, 0.0f));
-        assertFalse(watermaskClassifier.isWater(5.9f, 0.0f));
-        assertTrue(watermaskClassifier.isWater(5.0f, 0.9f));
+
+        assertFalse(watermaskClassifier.isWater(46.5f, 0.5f));
+
+        assertTrue(watermaskClassifier.isWater(5.01f, 0.01f));
+        assertTrue(watermaskClassifier.isWater(5.95f, 0.93f));
+        assertTrue(watermaskClassifier.isWater(5.04f, 0.95f));
 
         assertTrue(watermaskClassifier.isWater(5.5f, 0.5f));
         assertFalse(watermaskClassifier.isWater(5.88f, 0.24f));
+
+        assertTrue(watermaskClassifier.isWater(43.322360f, 4.157f));
+        assertTrue(watermaskClassifier.isWater(43.511243f, 3.869841f));
+
+        assertFalse(watermaskClassifier.isWater(45.981416f, -84.462957f));
+        assertTrue(watermaskClassifier.isWater(45.967423f, -84.477179f));
+
+        assertTrue(watermaskClassifier.isWater(53.5f, 5.92f));
+        assertFalse(watermaskClassifier.isWater(53.458760f, 5.801733f));
     }
 
     @Test
     public void testIsInRange() throws Exception {
-        final WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(5.9, 0.6);
-        assertTrue(watermaskClassifier.isInRange("e000n05f.img", geoPos));
-        geoPos.lon = 0.9;
-        geoPos.lat = 5.0;
-        assertTrue(watermaskClassifier.isInRange("e000n05f.img", geoPos));
-        geoPos.lon = -0.1;
-        geoPos.lat = -5.0;
-        assertTrue(watermaskClassifier.isInRange("w000s05f.img", geoPos));
-        geoPos.lon = 0.1;
-        geoPos.lat = -5.001;
-        assertTrue(watermaskClassifier.isInRange("e000s05f.img", geoPos));
-        geoPos.lon = -0.1;
-        geoPos.lat = -5.0;
-        assertTrue(watermaskClassifier.isInRange("w000s05f.img", geoPos));
-        geoPos.lon = 0.1;
-        geoPos.lat = 4.99;
-        assertFalse(watermaskClassifier.isInRange("e000n05f.img", geoPos));
-        geoPos.lon = -120.53;
-        geoPos.lat = -53.71;
-        assertTrue(watermaskClassifier.isInRange("w120s53f.img", geoPos));
-        geoPos.lon = 179;
-        geoPos.lat = 10;
-        assertFalse(watermaskClassifier.isInRange("e000n09f.img", geoPos));
-        geoPos.lon = -2.2;
-        geoPos.lat = 45.3;
-        assertTrue(watermaskClassifier.isInRange("w002n45f.img", geoPos));
-    }
 
-    @Test
-    public void testComputeTileIndex() throws Exception {
-        Point tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(89.99, -179.99));
-        assertEquals(0, tileIndex.x);
-        assertEquals(0, tileIndex.y);
+        // north-west
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(89.0, -179.0));
-        assertEquals(0, tileIndex.x);
-        assertEquals(0, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("w002n51.img", 51.007f, -1.30f));
+        assertFalse(WatermaskClassifier.isInRange("w001n51.img", 51.007f, -1.30f));
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(88.99, -178.99));
-        assertEquals(1, tileIndex.x);
-        assertEquals(1, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("w002n48.img", 48.007f, -1.83f));
+        assertFalse(WatermaskClassifier.isInRange("w001n48.img", 48.007f, -1.83f));
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(0.0, -0.1));
-        assertEquals(179, tileIndex.x);
-        assertEquals(89, tileIndex.y);
+        // north-east
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(0.0, 0.0));
-        assertEquals(180, tileIndex.x);
-        assertEquals(89, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 0.30f));
+        assertFalse(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 0.30f));
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(5.99, 0.99));
-        assertEquals(180, tileIndex.x);
-        assertEquals(84, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 1.30f));
+        assertFalse(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 1.30f));
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(4.99, -0.01));
-        assertEquals(179, tileIndex.x);
-        assertEquals(85, tileIndex.y);
+        // south-west
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(-89.0, 0.01));
-        assertEquals(180, tileIndex.x);
-        assertEquals(179, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("w001s01.img", -0.01f, -0.30f));
+        assertFalse(WatermaskClassifier.isInRange("w000s00.img", -0.01f, -0.30f));
 
-        tileIndex = watermaskClassifier.computeTileIndex(new WatermaskClassifier.GeoPos(-0.1, 179.0));
-        assertEquals(359, tileIndex.x);
-        assertEquals(90, tileIndex.y);
+        assertTrue(WatermaskClassifier.isInRange("w002s02.img", -1.01f, -1.30f));
+        assertFalse(WatermaskClassifier.isInRange("w001s01.img", -1.01f, -1.30f));
+
+        // south-east
+
+        assertTrue(WatermaskClassifier.isInRange("e000s01.img", -0.01f, 0.30f));
+        assertFalse(WatermaskClassifier.isInRange("e000s00.img", -0.01f, 0.30f));
+
+        assertTrue(WatermaskClassifier.isInRange("e001s01.img", -0.01f, 1.30f));
+        assertFalse(WatermaskClassifier.isInRange("e001s00.img", -0.01f, 1.30f));
+
     }
 
     @Test
     public void testGeoPosToPixel() throws Exception {
-        WatermaskClassifier.GeoPos geoPos = new WatermaskClassifier.GeoPos(0.0, 0.0);
-        Point pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        Point pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0f);
         assertEquals(0, pixelPos.x);
         assertEquals(1023, pixelPos.y);
 
-        geoPos.lon = 0.5;
-        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.5f);
         assertEquals(512, pixelPos.x);
         assertEquals(1023, pixelPos.y);
 
-        geoPos.lon = 0.0009765;
-        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0009765f);
         assertEquals(0, pixelPos.x);
         assertEquals(1023, pixelPos.y);
 
-        geoPos.lon = 0.0009766;
-        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0009766f);
         assertEquals(1, pixelPos.x);
         assertEquals(1023, pixelPos.y);
 
-        geoPos.lon = 0.99999;
-        pixelPos = watermaskClassifier.geoPosToPixel(1024, 1024, geoPos);
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.99999f);
         assertEquals(1023, pixelPos.x);
         assertEquals(1023, pixelPos.y);
-    }
 
-    @Test
-    public void testToBinaryString() throws Exception {
-        assertEquals("00000000", WatermaskClassifier.toBinaryString(0));
-        assertEquals("00001010", WatermaskClassifier.toBinaryString(10));
-        assertEquals("00011001", WatermaskClassifier.toBinaryString(25));
-        assertEquals("01000011", WatermaskClassifier.toBinaryString(67));
-        assertEquals("01111111", WatermaskClassifier.toBinaryString(127));
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.5f, 0.0f);
+        assertEquals(0, pixelPos.x);
+        assertEquals(511, pixelPos.y);
+
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0009765f, 0.5f);
+        assertEquals(512, pixelPos.x);
+        assertEquals(1023, pixelPos.y);
+
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0009766f, 0.5f);
+        assertEquals(512, pixelPos.x);
+        assertEquals(1022, pixelPos.y);
+
+        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.99999f, 0.0f);
+        assertEquals(0, pixelPos.x);
+        assertEquals(0, pixelPos.y);
     }
 }
