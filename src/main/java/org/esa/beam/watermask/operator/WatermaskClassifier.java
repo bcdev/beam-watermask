@@ -90,9 +90,6 @@ public class WatermaskClassifier {
      * @throws IOException If some IO-error occurs reading the source file.
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
-        if( lat > 49 && lat < 50 && lon > 0 && lon < 1 ) {
-            int blah = 5;
-        }
         final String shapefile = getShapeFile(lat, lon);
         if (shapefile == null) {
             return fill ? getTypeOfAdjacentTiles(lat, lon) : 2;
@@ -126,19 +123,19 @@ public class WatermaskClassifier {
         switch (searchingDirection) {
             case 0:
                 // to the top
-                lat = (float) ((int) lat + 1.0001);
+                lat = (float) ((int) lat + 1.000001);
                 break;
             case 1:
                 // to the left
-                lon = (float) ((int) lon - 0.0001);
+                lon = (float) ((int) lon - 0.000001);
                 break;
             case 2:
                 // to the bottom
-                lat = (float) ((int) lat - 0.0001);
+                lat = (float) ((int) lat - 0.000001);
                 break;
             case 3:
                 // to the right
-                lon = (float) ((int) lon + 1.0001);
+                lon = (float) ((int) lon + 1.000001);
                 break;
         }
 

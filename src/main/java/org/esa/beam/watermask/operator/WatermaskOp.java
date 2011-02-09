@@ -102,8 +102,7 @@ public class WatermaskOp extends Operator {
         }
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        final Band lwBand = targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
-        lwBand.setNoDataValue(2);
+        targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 

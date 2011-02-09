@@ -28,39 +28,39 @@ import static org.junit.Assert.*;
  */
 public class WatermaskClassifierTest {
 
-    private WatermaskClassifier watermaskClassifier;
+    private WatermaskClassifier classifier;
 
     @Before
     public void setUp() throws Exception {
-        watermaskClassifier = new WatermaskClassifier(50, false);
+        classifier = new WatermaskClassifier(50, false);
     }
 
     @Test
     public void testIsWater() throws Exception {
 
-        assertFalse(watermaskClassifier.isWater(49.68f, 0.581f));
-        assertTrue(watermaskClassifier.isWater(49.434505f, 0.156014f));
+        assertFalse(classifier.isWater(49.68f, 0.581f));
+        assertTrue(classifier.isWater(49.434505f, 0.156014f));
 
-        assertTrue(watermaskClassifier.isWater(49.33615f, -0.0096f));
-        assertFalse(watermaskClassifier.isWater(49.32062f, -0.005918f));
+        assertTrue(classifier.isWater(49.33615f, -0.0096f));
+        assertFalse(classifier.isWater(49.32062f, -0.005918f));
 
-        assertFalse(watermaskClassifier.isWater(46.5f, 0.5f));
+        assertFalse(classifier.isWater(46.5f, 0.5f));
 
-        assertTrue(watermaskClassifier.isWater(5.01f, 0.01f));
-        assertTrue(watermaskClassifier.isWater(5.95f, 0.93f));
-        assertTrue(watermaskClassifier.isWater(5.04f, 0.95f));
+        assertTrue(classifier.isWater(5.01f, 0.01f));
+        assertTrue(classifier.isWater(5.95f, 0.93f));
+        assertTrue(classifier.isWater(5.04f, 0.95f));
 
-        assertTrue(watermaskClassifier.isWater(5.5f, 0.5f));
-        assertFalse(watermaskClassifier.isWater(5.88f, 0.24f));
+        assertTrue(classifier.isWater(5.5f, 0.5f));
+        assertFalse(classifier.isWater(5.88f, 0.24f));
 
-        assertTrue(watermaskClassifier.isWater(43.322360f, 4.157f));
-        assertTrue(watermaskClassifier.isWater(43.511243f, 3.869841f));
+        assertTrue(classifier.isWater(43.322360f, 4.157f));
+        assertTrue(classifier.isWater(43.511243f, 3.869841f));
 
-        assertFalse(watermaskClassifier.isWater(45.981416f, -84.462957f));
-        assertTrue(watermaskClassifier.isWater(45.967423f, -84.477179f));
+        assertFalse(classifier.isWater(45.981416f, -84.462957f));
+        assertTrue(classifier.isWater(45.967423f, -84.477179f));
 
-        assertTrue(watermaskClassifier.isWater(53.5f, 5.92f));
-        assertFalse(watermaskClassifier.isWater(53.458760f, 5.801733f));
+        assertTrue(classifier.isWater(53.5f, 5.92f));
+        assertFalse(classifier.isWater(53.458760f, 5.801733f));
     }
 
     @Test
