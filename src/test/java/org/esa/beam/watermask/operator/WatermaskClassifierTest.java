@@ -29,10 +29,18 @@ import static org.junit.Assert.*;
 public class WatermaskClassifierTest {
 
     private WatermaskClassifier classifier;
+    private WatermaskClassifier fillClassifier;
 
     @Before
     public void setUp() throws Exception {
         classifier = new WatermaskClassifier(50, false);
+        fillClassifier = new WatermaskClassifier(50, true);
+    }
+
+    @Test
+    public void testFill() throws Exception {
+        assertTrue(fillClassifier.isWater(42.908833f, 5.5034647f));
+        assertTrue(fillClassifier.isWater(42.092968f, 4.950571f));
     }
 
     @Test

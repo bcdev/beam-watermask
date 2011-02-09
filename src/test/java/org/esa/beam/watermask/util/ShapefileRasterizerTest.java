@@ -24,8 +24,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 
 /**
- * TODO fill out or delete
- *
  * @author Thomas Storm
  */
 public class ShapefileRasterizerTest {
@@ -36,7 +34,7 @@ public class ShapefileRasterizerTest {
     public void testRasterize() throws Exception {
         ShapeFileRasterizer.tileSize = new Point(SIDE_LENGTH, SIDE_LENGTH);
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(new File("C:\\temp\\"));
-        final BufferedImage bufferedImage = rasterizer.createImage(new File("C:\\temp\\e000n05f.shp"));
+        final BufferedImage bufferedImage = rasterizer.createImage(new File("C:\\temp\\e004n43e.shp"));
         ImageIO.write(bufferedImage, "png", new File("C:\\temp\\output.png"));
     }
 }
