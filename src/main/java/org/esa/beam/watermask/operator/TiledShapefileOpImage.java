@@ -120,7 +120,7 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         String horizontalToken;
         String horizonatlInt;
         if (tileX <= 179) {
-            horizonatlInt = "" + Math.abs(tileX - 179);
+            horizonatlInt = "" + Math.abs(tileX - 180);
             horizontalToken = "w";
         } else {
             horizonatlInt = "" + Math.abs(tileX - 180);
@@ -138,7 +138,7 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
             verticalInt = "" + Math.abs(tileY - 89);
             verticalToken = "n";
         } else {
-            verticalInt = "" + Math.abs(tileY - 90);
+            verticalInt = "" + Math.abs(tileY - 89);
             verticalToken = "s";
         }
         if (verticalInt.length() == 1) {
