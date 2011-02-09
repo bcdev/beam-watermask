@@ -17,18 +17,23 @@
 package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.VirtualDir;
+import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.watermask.util.ShapeFileRasterizer;
 
+import javax.imageio.ImageIO;
 import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
-import java.awt.image.SampleModel;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -41,91 +46,136 @@ import java.util.zip.ZipFile;
 @SuppressWarnings({"ResultOfMethodCallIgnored"})
 public class WatermaskClassifier {
 
-    public static final String ZIP_FILENAME = "images.zip";
-
     private TiledShapefileOpImage image;
 
-    private final int IMAGE_LENGTH;
+    private final int tileSize;
 
     private List<Bounds> banishedGeoPos = new ArrayList<Bounds>();
 
-    public WatermaskClassifier(int resolution) throws IOException {
-        IMAGE_LENGTH = ShapeFileRasterizer.computeSideLength(resolution);
-        String filename = resolution + "m.zip";
-        final URL someResource = getClass().getResource("images.zip");
+    private int searchingDirection = 0;
+
+    private String filename;
+    private Map<Bounds, String> cachedEntryNames = new HashMap<Bounds, String>();
+    private final boolean fill;
+
+    /**
+     * Creates a new classifier instance on the given resolution.
+     *
+     *
+     * @param resolution The resolution, which shall be used for querying.
+     *
+     * @param fill If fill algorithm shall be used.
+     * @throws IOException If some IO-error occurs creating the sources.
+     */
+    public WatermaskClassifier(int resolution, boolean fill) throws IOException {
+        this.fill = fill;
+        tileSize = ShapeFileRasterizer.computeSideLength(resolution);
+        filename = resolution + "m.zip";
+        final URL someResource = getClass().getResource(filename);
         final Properties properties = new Properties();
-        int width = IMAGE_LENGTH * 360;
-        int height = IMAGE_LENGTH * 180;
+        int width = tileSize * 360;
+        int height = tileSize * 180;
         properties.setProperty("width", "" + width);
         properties.setProperty("height", "" + height);
-        properties.setProperty("tileWidth", "" + IMAGE_LENGTH);
-        properties.setProperty("tileHeight", "" + IMAGE_LENGTH);
+        properties.setProperty("tileWidth", "" + tileSize);
+        properties.setProperty("tileHeight", "" + tileSize);
         properties.setProperty("dataType", "" + DataBuffer.TYPE_BYTE);
+        properties.setProperty("numberOfBits", "1");
         image = TiledShapefileOpImage.create(VirtualDir.create(new File(someResource.getFile()).getParentFile()),
                                              properties, filename);
     }
 
+    /**
+     * Returns the sample value at the given geo-position.
+     *
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     *
+     * @return The corresponding sample value.
+     *
+     * @throws IOException If some IO-error occurs reading the source file.
+     */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
-        final GeoPos geoPos = new GeoPos(lat, lon);
-        final Point tileIndex = computeTileIndex(geoPos);
+        final String shapefile = getShapeFile(lat, lon);
+        if (shapefile == null) {
+            return fill ? getTypeOfAdjacentTiles(lat, lon) : 2;
+        }
+        image.setShapefile(shapefile);
+        final double pixelSize = 360.0 / image.getWidth();
+        final int x = (int) Math.floor((lon + 180.0) / pixelSize);
+        final int y = (int) Math.floor((90.0 - lat) / pixelSize);
+        final Point tileIndex = new Point(x / tileSize, y / tileSize);
         final Raster tile = image.getTile(tileIndex.x, tileIndex.y);
-        final SampleModel sampleModel = tile.getSampleModel();
-        final DataBuffer dataBuffer = tile.getDataBuffer();
-        final Point pixelPosition = geoPosToPixel(IMAGE_LENGTH, IMAGE_LENGTH, geoPos);
-        int x = pixelPosition.x / 8;
-        int y = pixelPosition.y / 8;
-        final int sample = sampleModel.getSample(x, y, 0, dataBuffer);
-        int bitOffset = 7 - (pixelPosition.x % 8);
-        final String sampleString = toBinaryString(sample);
-        return Integer.parseInt("" + sampleString.charAt(bitOffset));
+        final BufferedImage image1 = image.getAsBufferedImage(new Rectangle(tile.getMinX(), tile.getMinY(), tileSize, tileSize), null);
+        ImageIO.write(image1, "png", new File("C:\\temp\\output2.png"));
+        return tile.getSample(x, y, 0);
     }
 
+    /**
+     * Classifies the given geo-position as water or land.
+     *
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     *
+     * @return true, if the geo-position is over water, false otherwise.
+     *
+     * @throws IOException If some IO-error occurs reading the source file.
+     */
     public boolean isWater(float lat, float lon) throws IOException {
         return getWaterMaskSample(lat, lon) == 1;
     }
 
-    static String toBinaryString(int input) {
-        StringBuilder result = new StringBuilder("00000000");
-        for (int bit = 0; bit < 8; bit++) {
-            if (((input >> bit) & 1) > 0) {
-                result.setCharAt(7 - bit, '1');
-            }
+    private byte getTypeOfAdjacentTiles(float inputLat, float inputLon) {
+        float lat = inputLat;
+        float lon = inputLon;
+        switch (searchingDirection) {
+            case 0:
+                // to the top
+                lat = (float) ((int) lat + 1.0001);
+                break;
+            case 1:
+                // to the left
+                lon = (float) ((int) lon - 0.0001);
+                break;
+            case 2:
+                // to the bottom
+                lat = (float) ((int) lat - 0.0001);
+                break;
+            case 3:
+                // to the right
+                lon = (float) ((int) lon + 1.0001);
+                break;
         }
-        return result.toString();
+
+        searchingDirection = (int) (Math.random() * 4);
+
+        try {
+            return (byte) getWaterMaskSample(lat, lon);
+        } catch (IOException e) {
+            throw new IllegalStateException("Error getting sample of position 'lat=" + lat + ", lon=" + lon + "'.", e);
+        }
     }
 
-
-    Point computeTileIndex(GeoPos geoPos) {
-        int lonOffset = 0;
-        if (geoPos.lon >= 0) {
-            lonOffset = 1;
-        }
-        int latOffset = 0;
-        if (geoPos.lat < 0) {
-            latOffset = 1;
-        }
-
-        final int x = (int) (geoPos.lon) + 179 + lonOffset;
-        final int y = Math.abs((int) (geoPos.lat) - 89) + latOffset;
-        return new Point(x, y);
-    }
-
-    Point geoPosToPixel(int width, int height, GeoPos geoPos) {
+    static Point geoPosToPixel(int width, int height, float lat, float lon) {
         // exploiting that shapefiles are of size '1° squared'
-        double latitudePart = Math.abs(geoPos.lat - (int) geoPos.lat);
-        double longitudePart = Math.abs(geoPos.lon - (int) geoPos.lon);
+        double latitudePart = Math.abs(lat - (int) lat);
+        double longitudePart = Math.abs(lon - (int) lon);
         final int xCoord = (int) (width * longitudePart);
         final int yCoord = height - (int) (height * latitudePart) - 1;
         return new Point(xCoord, yCoord);
     }
 
-    boolean shapeFileExists(float lat, float lon) {
+    String getShapeFile(float lat, float lon) {
         final GeoPos geoPos = new GeoPos(lat, lon);
         final Bounds bounds = new Bounds(geoPos);
-        if (banishedGeoPos.contains(bounds)) {
-            return false;
+        final String cachedEntryName = cachedEntryNames.get(bounds);
+        if( cachedEntryName != null ) {
+            return cachedEntryName;
         }
-        final URL imageResourceUrl = getClass().getResource(ZIP_FILENAME);
+        if (banishedGeoPos.contains(bounds)) {
+            return null;
+        }
+        final URL imageResourceUrl = getClass().getResource(filename);
         ZipFile zipFile;
         try {
             zipFile = new ZipFile(imageResourceUrl.getFile());
@@ -136,24 +186,31 @@ public class WatermaskClassifier {
         while (entries.hasMoreElements()) {
             final ZipEntry entry = entries.nextElement();
             final String entryName = entry.getName();
-            if (isInRange(entryName, geoPos)) {
-                return true;
+            if (isInRange(entryName, lat, lon)) {
+                cachedEntryNames.put(bounds, entryName);
+                return entryName;
             }
         }
         banishedGeoPos.add(bounds);
-        return false;
+        return null;
     }
 
-    boolean isInRange(String fileName, GeoPos geoPos) {
-        final String lonPositionString = fileName.substring(1, 4);
-        final String latPositionString = fileName.substring(5, 7);
-        final int fileLongitude = Integer.parseInt(lonPositionString);
-        final int fileLatitude = Integer.parseInt(latPositionString);
-        final int inputLongitude = (int) geoPos.lon;
-        final int inputLatitude = (int) geoPos.lat;
+    static boolean isInRange(String fileName, float lat, float lon) {
+        int fileLongitude = Integer.parseInt(fileName.substring(1, 4));
+        int fileLatitude = Integer.parseInt(fileName.substring(5, 7));
+        final int inputLongitude = (int) lon;
+        final int inputLatitude = (int) lat;
 
-        final boolean geoPosIsWest = geoPos.lon < 0;
-        final boolean geoPosIsSouth = geoPos.lat < 0;
+        final boolean geoPosIsWest = lon < 0;
+        final boolean geoPosIsSouth = lat < 0;
+
+        if( geoPosIsWest ) {
+            fileLongitude--;
+        }
+        if (geoPosIsSouth) {
+            fileLatitude--;
+        }
+
         final boolean isInRange = Math.abs(inputLatitude) >= fileLatitude &&
                                   Math.abs(inputLatitude) < fileLatitude + 1 &&
                                   Math.abs(inputLongitude) >= fileLongitude &&
@@ -171,41 +228,18 @@ public class WatermaskClassifier {
         } else if (fileName.startsWith("e") && fileName.charAt(4) == 's') {
             return !geoPosIsWest && geoPosIsSouth;
         } else {
-            throw new IllegalArgumentException("No file for geo-position: '" + geoPos.toString() + "'.");
+            throw new IllegalArgumentException("No file for geo-position: 'lat=" + lat + ", lon=" + lon + "'.");
         }
     }
 
-    private static class GeoPos {
+    static class Bounds {
 
-        double lat;
-        double lon;
+        private int minX;
+        private int maxX;
+        private int minY;
+        private int maxY;
 
-        GeoPos(double lat, double lon) {
-            if (lon < -180 || lon > 180 || lat < -90 || lat > 90) {
-                throw new IllegalArgumentException(
-                        "Lon has to be between -180 and 180, and lat has to be between -90 and 90, respectively.");
-            }
-            this.lat = lat;
-            this.lon = lon;
-        }
-
-        @Override
-        public String toString() {
-            return "GeoPos{" +
-                   "lat=" + lat +
-                   ", lon=" + lon +
-                   '}';
-        }
-    }
-
-    private static class Bounds {
-
-        int minX;
-        int maxX;
-        int minY;
-        int maxY;
-
-        private Bounds(GeoPos geoPos) {
+        Bounds(GeoPos geoPos) {
             minX = (int) geoPos.lon;
             maxX = minX + 1;
             minY = (int) geoPos.lat;

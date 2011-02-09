@@ -16,7 +16,6 @@
 
 package org.esa.beam.watermask.util;
 
-import org.esa.beam.watermask.operator.WatermaskClassifier;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
@@ -45,7 +44,6 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -60,7 +58,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
 
 /**
  * Responsible for transferring shapefiles containing a land/water-mask into a rasterized image.
@@ -69,17 +66,26 @@ import java.util.zip.ZipOutputStream;
  */
 public class ShapeFileRasterizer {
 
-    private static final String ZIPFILE_NAME = "images.zip";
     private final Set<File> tempFiles;
     private final File targetDir;
 
-    private static Point tileSize;
+    static Point tileSize;
+    private final String tempDir;
 
-    public ShapeFileRasterizer(File targetDir) {
+    ShapeFileRasterizer(File targetDir) {
         tempFiles = new HashSet<File>();
         this.targetDir = targetDir;
+        tempDir = System.getProperty("java.io.tmpdir", ".");
     }
 
+    /**
+     * The main method of this tool.
+     *
+     * @param args Three arguments are needed: 1) directory containing shapefiles. 2) target directory.
+     *             3) resolution in meters / pixel.
+     *
+     * @throws IOException If some IO error occurs.
+     */
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
@@ -94,6 +100,12 @@ public class ShapeFileRasterizer {
         rasterizer.rasterizeShapefiles(resourceDir);
     }
 
+    /**
+     * Computes the side length of the images to be generated for the given resolution.
+     *
+     * @param resolution The resolution.
+     * @return The side length of the images to be generated.
+     */
     public static int computeSideLength(int resolution) {
         final int pixelXCount = 40024000 / resolution;
         final int pixelXCountPerTile = pixelXCount / 360;
@@ -125,6 +137,7 @@ public class ShapeFileRasterizer {
                     throw new IllegalStateException(
                             "Error generating temp files from shapefile '" + shapeFile.getAbsolutePath() + "'.", e);
                 }
+                zipFile.close();
                 for (File file : tempShapeFiles) {
                     if (file.getName().endsWith("shp")) {
                         final BufferedImage image = createImage(file);
@@ -139,7 +152,6 @@ public class ShapeFileRasterizer {
                 rasterizeShapefiles(subDir);
             }
         }
-//        zipFiles();
     }
 
     BufferedImage createImage(File shapeFile) throws IOException {
@@ -156,23 +168,44 @@ public class ShapeFileRasterizer {
         BufferedImage landMaskImage = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY);
         Graphics2D graphics = landMaskImage.createGraphics();
 
-        int lonMin = Integer.parseInt(shapeFile.getName().substring(1, 4));
-        int lonMax = lonMin + 1;
-        int latMin = Integer.parseInt(shapeFile.getName().substring(5, 7));
-        int latMax = latMin + 1;
+        final String shapeFileName = shapeFile.getName();
+        int lonMin = Integer.parseInt(shapeFileName.substring(1, 4));
+        int lonMax;
+        if( shapeFileName.startsWith("e") ) {
+            lonMax = lonMin + 1;
+        } else if(shapeFileName.startsWith("w")) {
+            lonMin--;
+            lonMin = lonMin * -1;
+            lonMax = lonMin--;
+        } else {
+            throw new IllegalStateException("Wrong shapefile-name: '" + shapeFileName + "'.");
+        }
+
+        int latMin = Integer.parseInt(shapeFileName.substring(5, 7));
+        int latMax;
+        if( shapeFileName.charAt(4) == 'n') {
+            latMax = latMin + 1;
+        } else if( shapeFileName.charAt(4) == 's') {
+            latMin--;
+            latMin = latMin * -1;
+            latMax = latMin--;
+        } else {
+            throw new IllegalStateException("Wrong shapefile-name: '" + shapeFileName + "'.");
+        }
 
         StreamingRenderer renderer = new StreamingRenderer();
         renderer.setContext(context);
         renderer.paint(graphics, new Rectangle(0, 0, width, height),
                        new ReferencedEnvelope(lonMin, lonMax, latMin, latMax, crs));
 
-        tempFiles.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".fix"));
-        tempFiles.add(new File(getFilenameWithoutExtension(shapeFile.getName()) + ".qix"));
+        tempFiles.add(new File(tempDir, getFilenameWithoutExtension(shapeFileName) + ".fix"));
+        tempFiles.add(new File(tempDir, getFilenameWithoutExtension(shapeFileName) + ".qix"));
         return landMaskImage;
     }
 
     private void writeToFile(BufferedImage image, String name) throws IOException {
         StringBuilder fileName = new StringBuilder(getFilenameWithoutExtension(name));
+        fileName.deleteCharAt(fileName.length() - 1);
         fileName.append(".img");
         File outputFile = new File(targetDir.getAbsolutePath() + File.separatorChar + fileName.toString());
 
@@ -193,37 +226,6 @@ public class ShapeFileRasterizer {
         }
     }
 
-    private void zipFiles() throws IOException {
-        byte[] buffer = new byte[1];
-        final String outFilename = targetDir.getAbsolutePath() + File.separatorChar + WatermaskClassifier.ZIP_FILENAME;
-        ZipOutputStream writer = new ZipOutputStream(new FileOutputStream(outFilename));
-        final ArrayList<InputStream> inputStreams = new ArrayList<InputStream>();
-        try {
-            final File[] files = targetDir.listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return !ZIPFILE_NAME.equals(name);
-                }
-            });
-            for (File file : files) {
-                FileInputStream reader = new FileInputStream(file.getAbsolutePath());
-                inputStreams.add(reader);
-                writer.putNextEntry(new ZipEntry(file.getName()));
-                while (reader.read(buffer) != -1) {
-                    writer.write(buffer);
-                }
-                writer.closeEntry();
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Error generating zip file '" + outFilename + "'.", e);
-        } finally {
-            for (InputStream reader : inputStreams) {
-                reader.close();
-            }
-            writer.close();
-        }
-    }
-
     private List<File> generateTempFiles(ZipFile zipFile, Enumeration<? extends ZipEntry> entries) throws
                                                                                                    IOException {
         List<File> files = new ArrayList<File>();
@@ -236,7 +238,7 @@ public class ShapeFileRasterizer {
     }
 
     private File readIntoTempFile(ZipFile zipFile, ZipEntry entry) throws IOException {
-        File file = new File(entry.getName());
+        File file = new File(tempDir, entry.getName());
         tempFiles.add(file);
         byte[] buffer = new byte[1];
         FileOutputStream writer = new FileOutputStream(file);
