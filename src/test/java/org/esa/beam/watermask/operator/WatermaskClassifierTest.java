@@ -72,6 +72,9 @@ public class WatermaskClassifierTest {
 
         assertTrue(classifier.isWater(53.5f, 5.92f));
         assertFalse(classifier.isWater(53.458760f, 5.801733f));
+
+        assertTrue(classifier.isWater(-4.347463f, 11.443256f));
+        assertFalse(classifier.isWater(-4.2652f, 11.49324f));
     }
 
     @Test
