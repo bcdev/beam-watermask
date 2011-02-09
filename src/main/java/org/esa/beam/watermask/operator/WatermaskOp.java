@@ -51,8 +51,8 @@ import java.io.IOException;
                                 " which is based on SRTM-shapefiles and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
-    @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "150",
-               valueSet = {"50", "100", "150", "500"})
+    @Parameter(alias = "Resolution", description = "Resolution in m/pixel", defaultValue = "50",
+               valueSet = {"50", "150"})
     private int resolution;
 
     @Parameter(description = "Automatically fill pixels where no shapefile exists (experimental code)",
