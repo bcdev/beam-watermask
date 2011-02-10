@@ -51,6 +51,10 @@ import java.io.IOException;
                                 " which is based on SRTM-shapefiles and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
+    @SourceProduct(alias = "source", description = "The Product the land/water-mask shall be computed for.",
+                   label = "Name")
+    private Product sourceProduct;
+
     @Parameter(description = "Resolution in m/pixel", label = "Resolution in m/pixel",
                defaultValue = "50", valueSet = {"50", "150"})
     private int resolution;
@@ -59,9 +63,6 @@ public class WatermaskOp extends Operator {
                label = "Automatically fill pixels where no shapefile exists",
                defaultValue = "true")
     private boolean fill;
-
-    @SourceProduct(description = "The Product the land/water-mask shall be computed for.", label = "Name")
-    private Product sourceProduct;
 
     @TargetProduct
     private Product targetProduct;
@@ -89,7 +90,8 @@ public class WatermaskOp extends Operator {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     pixelPos.setLocation(x, y);
                     targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
-                    targetTile.setSample(x, y, classifier.getWaterMaskSample(geoPos.lat, geoPos.lon));
+                    final int waterMaskSample = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
+                    targetTile.setSample(x, y, waterMaskSample);
                 }
             }
         } catch (Exception e) {
@@ -98,13 +100,20 @@ public class WatermaskOp extends Operator {
     }
 
     private void initTargetProduct() {
+        if(resolution != 50 && resolution != 150) {
+            throw new OperatorException("Resolution needs to be either 50 or 150.");
+        }
         if (sourceProduct.getGeoCoding() == null) {
             throw new OperatorException("Input product is not geo-referenced.");
         }
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
+        final Band band = targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
+        band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
+        if (band.getGeoCoding() == null) {
+            throw new OperatorException("Geo-reference information could not be copied.");
+        }
     }
 
     public static class Spi extends OperatorSpi {

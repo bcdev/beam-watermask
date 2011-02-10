@@ -43,6 +43,7 @@ import java.util.zip.ZipFile;
 @SuppressWarnings({"ResultOfMethodCallIgnored"})
 public class WatermaskClassifier {
 
+    public static final int INVALID_VALUE = 2;
     private TiledShapefileOpImage image;
 
     private final int tileSize;
@@ -55,11 +56,13 @@ public class WatermaskClassifier {
     private String zipfilePath;
     private Map<Bounds, String> cachedEntryNames = new HashMap<Bounds, String>();
     private final boolean fill;
+    private HashMap<Point, String> tileShapefileMap;
+    private Map<Bounds, Byte> fillDataMap;
 
     /**
      * Creates a new classifier instance on the given resolution.
      *
-     * @param resolution The resolution, which shall be used for querying.
+     * @param resolution The resolution specifying on source data is to be queried.
      * @param fill       If fill algorithm shall be used.
      *
      * @throws IOException If some IO-error occurs creating the sources.
@@ -69,6 +72,8 @@ public class WatermaskClassifier {
         tileSize = ShapeFileRasterizer.computeSideLength(resolution);
         filename = resolution + "m.zip";
         zipfilePath = getZipfilePath();
+        tileShapefileMap = new HashMap<Point, String>();
+        fillDataMap = new HashMap<Bounds, Byte>();
 
         int width = tileSize * 360;
         int height = tileSize * 180;
@@ -80,7 +85,7 @@ public class WatermaskClassifier {
         final URL imageProperties = getClass().getResource("image.properties");
         properties.load(imageProperties.openStream());
 
-        image = TiledShapefileOpImage.create(properties, zipfilePath);
+        image = TiledShapefileOpImage.create(properties, zipfilePath, this);
     }
 
     /**
@@ -89,19 +94,32 @@ public class WatermaskClassifier {
      * @param lat The latitude value.
      * @param lon The longitude value.
      *
-     * @return The corresponding sample value.
+     * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
+     *         about the position.
      *
      * @throws IOException If some IO-error occurs reading the source file.
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
+        if (lat >= 60.0 || lat <= -60.0) {
+            // no shapefiles for latitudes  >= 60° or <= -60°
+            return INVALID_VALUE;
+        }
         final String shapefile = getShapeFile(lat, lon);
         if (shapefile == null) {
-            return fill ? getTypeOfAdjacentTile(lat, lon) : 2;
+            final Bounds bounds = new Bounds(lat, lon);
+            final Byte cachedValue = fillDataMap.get(bounds);
+            if (cachedValue != null) {
+                return cachedValue;
+            }
+            final byte value = fill ? getTypeOfAdjacentTile(lat, lon) : INVALID_VALUE;
+            fillDataMap.put(bounds, value);
+            return value;
         }
         final double pixelSize = 360.0 / image.getWidth();
         final int x = (int) Math.floor((lon + 180.0) / pixelSize);
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
         final Point tileIndex = new Point(x / tileSize, y / tileSize);
+        tileShapefileMap.put(tileIndex, shapefile);
         final Raster tile = image.getTile(tileIndex.x, tileIndex.y);
         return tile.getSample(x, y, 0);
     }
@@ -114,10 +132,16 @@ public class WatermaskClassifier {
      *
      * @return true, if the geo-position is over water, false otherwise.
      *
-     * @throws IOException If some IO-error occurs reading the source file.
+     * @throws IOException              If some IO-error occurs reading the source file.
+     * @throws IllegalArgumentException If there is no definite statement possible for the given position.
      */
     public boolean isWater(float lat, float lon) throws IOException {
-        return getWaterMaskSample(lat, lon) == 1;
+        final int waterMaskSample = getWaterMaskSample(lat, lon);
+        if (waterMaskSample == INVALID_VALUE) {
+            throw new IllegalArgumentException(
+                    "No definite statement possible for position 'lat=" + lat + ", lon=" + lon + "'.");
+        }
+        return waterMaskSample == 1;
     }
 
     private byte getTypeOfAdjacentTile(float inputLat, float inputLon) {
@@ -126,29 +150,34 @@ public class WatermaskClassifier {
         switch (searchingDirection) {
             case 0:
                 // to the top
-                lat = (float) ((int) lat + 1.0001);
+                lat = (float) ((int) lat + 1.00001);
                 break;
             case 1:
                 // to the left
-                lon = (float) ((int) lon - 0.0001);
+                lon = (float) ((int) lon - 0.00001);
                 break;
             case 2:
                 // to the bottom
-                lat = (float) ((int) lat - 0.0001);
+                lat = (float) ((int) lat - 0.00001);
                 break;
             case 3:
                 // to the right
-                lon = (float) ((int) lon + 1.0001);
+                lon = (float) ((int) lon + 1.00001);
                 break;
         }
 
         searchingDirection = (int) (Math.random() * 4);
 
         try {
-            return (byte) getWaterMaskSample(lat, lon);
+            final byte waterMaskSample = (byte) getWaterMaskSample(lat, lon);
+            return waterMaskSample == 2 ? waterMaskSample : getTypeOfAdjacentTile(lat, lon);
         } catch (IOException e) {
             throw new IllegalStateException("Error getting sample of position 'lat=" + lat + ", lon=" + lon + "'.", e);
         }
+    }
+
+    String getShapefile(Point tile) {
+        return tileShapefileMap.get(tile);
     }
 
     static Point geoPosToPixel(int width, int height, float lat, float lon) {
@@ -186,7 +215,7 @@ public class WatermaskClassifier {
 
     private String getZipfilePath() throws IOException {
         final String zipfilePath = System.getProperty("java.io.tmpdir") + filename;
-        if(new File(zipfilePath).exists()) {
+        if (new File(zipfilePath).exists()) {
             return zipfilePath;
         }
         final InputStream zipFileAsStream = getClass().getResourceAsStream(filename);
@@ -245,19 +274,23 @@ public class WatermaskClassifier {
         private int minY;
         private int maxY;
 
-        Bounds(GeoPos geoPos) {
-            minX = (int) geoPos.lon;
-            minY = (int) geoPos.lat;
-            if (geoPos.lon < 0) {
+        Bounds(float lat, float lon) {
+            minX = (int) lon;
+            minY = (int) lat;
+            if (lon < 0) {
                 maxX = minX - 1;
             } else {
                 maxX = minX + 1;
             }
-            if (geoPos.lat < 0) {
+            if (lat < 0) {
                 maxY = minY - 1;
             } else {
                 maxY = minY + 1;
             }
+        }
+
+        Bounds(GeoPos geoPos) {
+            this(geoPos.lat, geoPos.lon);
         }
 
         @Override

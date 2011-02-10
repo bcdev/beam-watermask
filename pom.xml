@@ -4,9 +4,25 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>beam-watermask</groupId>
+    <groupId>org.esa.beam</groupId>
     <artifactId>beam-watermask</artifactId>
     <version>1.0-SNAPSHOT</version>
+
+    <distributionManagement>
+        <repository>
+            <id>bc-mvn-repo-public</id>
+            <name>Public Maven Repository at Brockmann Consult</name>
+            <url>scp://www.brockmann-consult.de/var/www/www.brockmann-consult.de/mvn/os</url>
+            <uniqueVersion>false</uniqueVersion>
+        </repository>
+        <snapshotRepository>
+            <id>bc-mvn-repo-public</id>
+            <name>Public Maven Snapshot Repository at Brockmann Consult</name>
+            <url>scp://www.brockmann-consult.de/var/www/www.brockmann-consult.de/mvn/os</url>
+            <uniqueVersion>false</uniqueVersion>
+        </snapshotRepository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.esa.beam</groupId>
