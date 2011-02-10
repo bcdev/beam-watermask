@@ -43,7 +43,10 @@ import java.util.zip.ZipFile;
 @SuppressWarnings({"ResultOfMethodCallIgnored"})
 public class WatermaskClassifier {
 
+    public static final int LAND_VALUE = 0;
+    public static final int WATER_VALUE = 1;
     public static final int INVALID_VALUE = 2;
+
     private TiledShapefileOpImage image;
 
     private final int tileSize;
@@ -141,7 +144,7 @@ public class WatermaskClassifier {
             throw new IllegalArgumentException(
                     "No definite statement possible for position 'lat=" + lat + ", lon=" + lon + "'.");
         }
-        return waterMaskSample == 1;
+        return waterMaskSample == WATER_VALUE;
     }
 
     private byte getTypeOfAdjacentTile(float inputLat, float inputLon) {
@@ -170,7 +173,7 @@ public class WatermaskClassifier {
 
         try {
             final byte waterMaskSample = (byte) getWaterMaskSample(lat, lon);
-            return waterMaskSample == 2 ? waterMaskSample : getTypeOfAdjacentTile(lat, lon);
+            return waterMaskSample == INVALID_VALUE ? getTypeOfAdjacentTile(lat, lon) : waterMaskSample;
         } catch (IOException e) {
             throw new IllegalStateException("Error getting sample of position 'lat=" + lat + ", lon=" + lon + "'.", e);
         }
