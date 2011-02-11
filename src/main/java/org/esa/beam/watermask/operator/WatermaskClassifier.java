@@ -46,31 +46,35 @@ public class WatermaskClassifier {
     public static final int LAND_VALUE = 0;
     public static final int WATER_VALUE = 1;
     public static final int INVALID_VALUE = 2;
-
-    private TiledShapefileOpImage image;
+    public static final int RESOLUTION_50 = 50;
+    public static final int RESOLUTION_150 = 100;
 
     private final int tileSize;
+    private final boolean fill;
 
     private List<Bounds> banishedGeoPos = new ArrayList<Bounds>();
-
+    private TiledShapefileOpImage image;
     private int searchingDirection = 0;
-
     private String filename;
     private String zipfilePath;
     private Map<Bounds, String> cachedEntryNames = new HashMap<Bounds, String>();
-    private final boolean fill;
     private HashMap<Point, String> tileShapefileMap;
     private Map<Bounds, Byte> fillDataMap;
 
     /**
      * Creates a new classifier instance on the given resolution.
      *
-     * @param resolution The resolution specifying on source data is to be queried.
+     * @param resolution The resolution specifying on source data is to be queried. Needs to be RESOLUTION_50 or
+     *                   RESOLUTION_150.
      * @param fill       If fill algorithm shall be used.
      *
      * @throws IOException If some IO-error occurs creating the sources.
      */
     public WatermaskClassifier(int resolution, boolean fill) throws IOException {
+        if (resolution != RESOLUTION_50 && resolution != RESOLUTION_150) {
+            throw new IllegalArgumentException(
+                    "Resolution needs to be " + RESOLUTION_50 + " or " + RESOLUTION_150 + ".");
+        }
         this.fill = fill;
         tileSize = ShapeFileRasterizer.computeSideLength(resolution);
         filename = resolution + "m.zip";

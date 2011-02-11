@@ -100,8 +100,9 @@ public class WatermaskOp extends Operator {
     }
 
     private void initTargetProduct() {
-        if(resolution != 50 && resolution != 150) {
-            throw new OperatorException("Resolution needs to be either 50 or 150.");
+        if (resolution != WatermaskClassifier.RESOLUTION_50 && resolution != WatermaskClassifier.RESOLUTION_150) {
+            throw new OperatorException("Resolution needs to be either " + WatermaskClassifier.RESOLUTION_50 + " or " +
+                                        WatermaskClassifier.RESOLUTION_150 + ".");
         }
         if (sourceProduct.getGeoCoding() == null) {
             throw new OperatorException("Input product is not geo-referenced.");
