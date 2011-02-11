@@ -33,8 +33,8 @@ public class WatermaskClassifierTest {
 
     @Before
     public void setUp() throws Exception {
-        classifier = new WatermaskClassifier(50, false);
-        fillClassifier = new WatermaskClassifier(50, true);
+        classifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50, false);
+        fillClassifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50, true);
     }
 
     @Test
