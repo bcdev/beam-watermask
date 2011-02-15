@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -220,7 +221,8 @@ public class WatermaskClassifier {
 
     private String getImagesPath() throws IOException {
         final URL someResource = getClass().getResource("image.properties");
-        final String resourcePath = new File(someResource.getFile()).getParent();
+        final String decodedUrl = URLDecoder.decode(someResource.getFile(), "UTF-8");
+        final String resourcePath = new File(decodedUrl).getParent();
         return new File(resourcePath, resolution + "m").getAbsolutePath();
     }
 
