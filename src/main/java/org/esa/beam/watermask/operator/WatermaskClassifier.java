@@ -22,18 +22,14 @@ import org.esa.beam.watermask.util.ShapeFileRasterizer;
 import java.awt.Point;
 import java.awt.image.Raster;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * Classifies a pixel given by its geocoordinate as water pixel.
@@ -43,7 +39,6 @@ import java.util.zip.ZipFile;
 @SuppressWarnings({"ResultOfMethodCallIgnored"})
 public class WatermaskClassifier {
 
-    public static final int LAND_VALUE = 0;
     public static final int WATER_VALUE = 1;
     public static final int INVALID_VALUE = 2;
     public static final int RESOLUTION_50 = 50;
@@ -55,11 +50,10 @@ public class WatermaskClassifier {
     private List<Bounds> banishedGeoPos = new ArrayList<Bounds>();
     private TiledShapefileOpImage image;
     private int searchingDirection = 0;
-    private String filename;
-    private String zipfilePath;
     private Map<Bounds, String> cachedEntryNames = new HashMap<Bounds, String>();
     private HashMap<Point, String> tileShapefileMap;
     private Map<Bounds, Byte> fillDataMap;
+    private final int resolution;
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -75,10 +69,9 @@ public class WatermaskClassifier {
             throw new IllegalArgumentException(
                     "Resolution needs to be " + RESOLUTION_50 + " or " + RESOLUTION_150 + ".");
         }
+        this.resolution = resolution;
         this.fill = fill;
         tileSize = ShapeFileRasterizer.computeSideLength(resolution);
-        filename = resolution + "m.zip";
-        zipfilePath = getZipfilePath();
         tileShapefileMap = new HashMap<Point, String>();
         fillDataMap = new HashMap<Bounds, Byte>();
 
@@ -92,7 +85,7 @@ public class WatermaskClassifier {
         final URL imageProperties = getClass().getResource("image.properties");
         properties.load(imageProperties.openStream());
 
-        image = TiledShapefileOpImage.create(properties, zipfilePath, this);
+        image = TiledShapefileOpImage.create(properties, this);
     }
 
     /**
@@ -196,7 +189,7 @@ public class WatermaskClassifier {
         return new Point(xCoord, yCoord);
     }
 
-    String getShapeFile(float lat, float lon) throws IOException {
+    String getShapeFile(final float lat, final float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
         final Bounds bounds = new Bounds(geoPos);
         final String cachedEntryName = cachedEntryNames.get(bounds);
@@ -206,35 +199,29 @@ public class WatermaskClassifier {
         if (banishedGeoPos.contains(bounds)) {
             return null;
         }
-        ZipFile zipFile = new ZipFile(zipfilePath);
-        final Enumeration<? extends ZipEntry> entries = zipFile.entries();
-        while (entries.hasMoreElements()) {
-            final ZipEntry entry = entries.nextElement();
-            final String entryName = entry.getName();
-            if (isInRange(entryName, lat, lon)) {
-                cachedEntryNames.put(bounds, entryName);
-                return entryName;
+
+        final File imagesPath = new File(getImagesPath());
+        final File[] zipFiles = imagesPath.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return isInRange(name, lat, lon);
             }
+        });
+
+        if( zipFiles == null || zipFiles.length == 0 ) {
+            banishedGeoPos.add(bounds);
+            return null;
         }
-        banishedGeoPos.add(bounds);
-        return null;
+
+        final String zipFile = zipFiles[0].getAbsolutePath();
+        cachedEntryNames.put(bounds, zipFile);
+        return zipFile;
     }
 
-    private String getZipfilePath() throws IOException {
-        final String zipfilePath = System.getProperty("java.io.tmpdir") + filename;
-        if (new File(zipfilePath).exists()) {
-            return zipfilePath;
-        }
-        final InputStream zipFileAsStream = getClass().getResourceAsStream(filename);
-        final FileOutputStream outputStream = new FileOutputStream(zipfilePath);
-        byte[] buffer = new byte[8092];
-        int amount;
-        while ((amount = zipFileAsStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, amount);
-        }
-        outputStream.close();
-        zipFileAsStream.close();
-        return zipfilePath;
+    private String getImagesPath() throws IOException {
+        final URL someResource = getClass().getResource("image.properties");
+        final String resourcePath = new File(someResource.getFile()).getParent();
+        return new File(resourcePath, resolution + "m").getAbsolutePath();
     }
 
     static boolean isInRange(String fileName, float lat, float lon) {

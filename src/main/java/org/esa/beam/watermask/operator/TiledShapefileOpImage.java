@@ -18,6 +18,7 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.Assert;
 import org.esa.beam.jai.ImageHeader;
+import org.esa.beam.util.io.FileUtils;
 
 import javax.media.jai.JAI;
 import javax.media.jai.SourcelessOpImage;
@@ -39,16 +40,15 @@ import java.util.zip.ZipFile;
 public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private WatermaskClassifier classifier;
-    private ZipFile zipFile;
 
     public static TiledShapefileOpImage create(Properties defaultImageProperties,
-                                               String zipfilePath, WatermaskClassifier classifier) throws IOException {
+                                               WatermaskClassifier classifier) throws IOException {
 
         final ImageHeader imageHeader = ImageHeader.load(defaultImageProperties, null);
-        return new TiledShapefileOpImage(imageHeader, zipfilePath, classifier);
+        return new TiledShapefileOpImage(imageHeader, classifier);
     }
 
-    private TiledShapefileOpImage(ImageHeader imageHeader, String zipfilePath, WatermaskClassifier classifier) throws IOException {
+    private TiledShapefileOpImage(ImageHeader imageHeader, WatermaskClassifier classifier) throws IOException {
         super(imageHeader.getImageLayout(),
               null,
               imageHeader.getImageLayout().getSampleModel(null),
@@ -57,7 +57,6 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
               imageHeader.getImageLayout().getWidth(null),
               imageHeader.getImageLayout().getHeight(null));
         this.classifier = classifier;
-        zipFile = new ZipFile(zipfilePath);
         if (getTileCache() == null) {
             setTileCache(JAI.getDefaultInstance().getTileCache());
         }
@@ -73,15 +72,6 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
             throw new RuntimeException("Failed to read image tile.", e);
         }
         return targetRaster;
-    }
-
-    @Override
-    public void dispose() {
-        try {
-            zipFile.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private void readRawDataTile(WritableRaster targetRaster, int tileX, int tileY) throws IOException {
@@ -104,7 +94,10 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private InputStream createInputStream(int tileX, int tileY) throws IOException {
         String shapefile = classifier.getShapefile(new Point(tileX, tileY));
-        final ZipEntry entry = zipFile.getEntry(shapefile);
-        return zipFile.getInputStream(entry);
+        ZipFile zip = new ZipFile(shapefile);
+        shapefile = FileUtils.getFilenameWithoutExtension(shapefile);
+        shapefile = FileUtils.getFileNameFromPath(shapefile);
+        final ZipEntry entry = zip.getEntry(shapefile + ".img");
+        return zip.getInputStream(entry);
     }
 }
