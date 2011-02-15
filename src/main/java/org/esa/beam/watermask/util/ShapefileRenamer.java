@@ -26,28 +26,30 @@ public class ShapefileRenamer {
     }
 
     static void renameFiles(String dir) {
-        File path = new File(dir);
-        final File[] files = path.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".img") && name.length() == 12;
-            }
-        });
+//        File path = new File(dir);
+        File path = new File("C:\\Dokumente und Einstellungen\\olafd\\workspaces\\git\\beam-watermask\\target\\test-classes\\org\\esa\\beam\\watermask\\util");
+        final String[] files = path.list();
+//        final File[] files = path.listFiles(new FilenameFilter() {
+//            @Override
+//            public boolean accept(File dir, String name) {
+//                return name.endsWith(".img") && name.length() == 12;
+//            }
+//        });
         StringBuilder errors = new StringBuilder();
-        for (File file : files) {
-            final String oldName = file.getName();
-            String firstPart = oldName.substring(0, 7);
-            String secondPart = oldName.substring(8, 12);
-            String newName = firstPart + secondPart;
-
-            if (!file.renameTo(new File(file.getParent(), newName))) {
-                errors.append("something didn't work renaming '");
-                errors.append(file.getName());
-                errors.append("' to '");
-                errors.append(newName);
-                errors.append("'.\n");
-            }
-        }
+//        for (File file : files) {
+//            final String oldName = file.getName();
+//            String firstPart = oldName.substring(0, 7);
+//            String secondPart = oldName.substring(8, 12);
+//            String newName = firstPart + secondPart;
+//
+//            if (!file.renameTo(new File(file.getParent(), newName))) {
+//                errors.append("something didn't work renaming '");
+//                errors.append(file.getName());
+//                errors.append("' to '");
+//                errors.append(newName);
+//                errors.append("'.\n");
+//            }
+//        }
         if (errors.length() > 0) {
             throw new IllegalStateException(errors.toString());
         }
