@@ -47,7 +47,7 @@ public class WatermaskClassifier {
     public static final int WATER_VALUE = 1;
     public static final int INVALID_VALUE = 2;
     public static final int RESOLUTION_50 = 50;
-    public static final int RESOLUTION_150 = 100;
+    public static final int RESOLUTION_150 = 150;
 
     private final int tileSize;
     private final boolean fill;
