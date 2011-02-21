@@ -28,11 +28,12 @@
     <extension point="beam-ui:actions">
         <action>
             <id>watermask</id>
-            <class>org.esa.beam.watermask.ui.WatermaskAction</class>
+            <class>org.esa.beam.visat.actions.DefaultOperatorAction</class>
+            <operatorName>LandWaterMask</operatorName>
+            <dialogTitle>Accurate Land/Water-mask</dialogTitle>
+            <targetProductNameSuffix>_watermask</targetProductNameSuffix>
             <text>Land/Water-mask...</text>
-            <shortDescr>
-                Accurate Land/Water-mask based on shape files.
-            </shortDescr>
+            <shortDescr>Accurate Land/Water-mask based on shape files.</shortDescr>
             <mnemonic/>
             <parent>tool</parent>
             <helpID>watermask</helpID>
