@@ -3,6 +3,7 @@
     <symbolicName>beam-watermask</symbolicName>
     <version>1.0-SNAPSHOT</version>
     <name>Land-Water mask</name>
+
     <description>Accurate Land/Water-mask based on shape files.</description>
 
     <vendor>Brockmann Consult GmbH</vendor>

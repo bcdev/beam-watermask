@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2010 Brockmann Consult GmbH (info@brockmann-consult.de)
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3 of the License, or (at your option)
@@ -9,7 +9,7 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see http://www.gnu.org/licenses/
  */
@@ -21,11 +21,8 @@ import org.esa.beam.watermask.util.ShapeFileRasterizer;
 
 import java.awt.Point;
 import java.awt.image.Raster;
-import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +52,7 @@ public class WatermaskClassifier {
     private HashMap<Point, String> tileShapefileMap;
     private Map<Bounds, Byte> fillDataMap;
     private final int resolution;
+    private static final String SHAPEFILE_DIR_PROPERTY_NAME = "org.esa.beam.shapeImageDir";
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -133,13 +131,13 @@ public class WatermaskClassifier {
      *
      * @return true, if the geo-position is over water, false otherwise.
      *
-     * @throws IOException              If some IO-error occurs reading the source file.
-     * @throws IllegalArgumentException If there is no definite statement possible for the given position.
+     * @throws IOException If some IO-error occurs reading the source file.
+     * @throws Exception   If there is no definite statement possible for the given position.
      */
-    public boolean isWater(float lat, float lon) throws IOException {
+    public boolean isWater(float lat, float lon) throws Exception {
         final int waterMaskSample = getWaterMaskSample(lat, lon);
         if (waterMaskSample == INVALID_VALUE) {
-            throw new IllegalArgumentException(
+            throw new Exception(
                     "No definite statement possible for position 'lat=" + lat + ", lon=" + lon + "'.");
         }
         return waterMaskSample == WATER_VALUE;
@@ -201,66 +199,47 @@ public class WatermaskClassifier {
             return null;
         }
 
-        final File imagesPath = new File(getImagesPath());
-        final File[] zipFiles = imagesPath.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return isInRange(name, lat, lon);
-            }
-        });
-
-        if( zipFiles == null || zipFiles.length == 0 ) {
+        final String zipFile = getZipfile(lat, lon);
+        if( WatermaskClassifier.class.getResource(resolution + "m" + "/" + zipFile) == null) {
             banishedGeoPos.add(bounds);
             return null;
         }
 
-        final String zipFile = zipFiles[0].getAbsolutePath();
         cachedEntryNames.put(bounds, zipFile);
         return zipFile;
     }
 
-    private String getImagesPath() throws IOException {
-        final URL someResource = getClass().getResource("image.properties");
-        final String decodedUrl = URLDecoder.decode(someResource.getFile(), "UTF-8");
-        final String resourcePath = new File(decodedUrl).getParent();
-        return new File(resourcePath, resolution + "m").getAbsolutePath();
-    }
-
-    static boolean isInRange(String fileName, float lat, float lon) {
-        int fileLongitude = Integer.parseInt(fileName.substring(1, 4));
-        int fileLatitude = Integer.parseInt(fileName.substring(5, 7));
-        final int inputLongitude = (int) lon;
-        final int inputLatitude = (int) lat;
-
+    String getZipfile(float lat, float lon) {
         final boolean geoPosIsWest = lon < 0;
         final boolean geoPosIsSouth = lat < 0;
+        StringBuilder result = new StringBuilder();
+        final String eastOrWest = geoPosIsWest ? "w" : "e";
+        result.append(eastOrWest);
+        lon -= geoPosIsWest ? 1 : 0;
+        lat -= geoPosIsSouth ? 1 : 0;
+        int positiveLon = Math.abs((int)lon);
+        if (positiveLon >= 10 && positiveLon < 100) {
+            result.append("0");
+        } else if (positiveLon < 10) {
+            result.append("00");
+        }
+        result.append(positiveLon);
 
-        if (geoPosIsWest) {
-            fileLongitude--;
-        }
-        if (geoPosIsSouth) {
-            fileLatitude--;
-        }
+        final String northOrSouth = geoPosIsSouth ? "s" : "n";
+        result.append(northOrSouth);
 
-        final boolean isInRange = Math.abs(inputLatitude) >= fileLatitude &&
-                                  Math.abs(inputLatitude) < fileLatitude + 1 &&
-                                  Math.abs(inputLongitude) >= fileLongitude &&
-                                  Math.abs(inputLongitude) < fileLongitude + 1;
-        if (!isInRange) {
-            return false;
+        final int positiveLat = Math.abs((int) lat);
+        if (positiveLat < 10) {
+            result.append("0");
         }
+        result.append(positiveLat);
+        result.append(".img");
 
-        if (fileName.startsWith("w") && fileName.charAt(4) == 'n') {
-            return geoPosIsWest && !geoPosIsSouth;
-        } else if (fileName.startsWith("e") && fileName.charAt(4) == 'n') {
-            return !geoPosIsWest && !geoPosIsSouth;
-        } else if (fileName.startsWith("w") && fileName.charAt(4) == 's') {
-            return geoPosIsWest && geoPosIsSouth;
-        } else if (fileName.startsWith("e") && fileName.charAt(4) == 's') {
-            return !geoPosIsWest && geoPosIsSouth;
-        } else {
-            throw new IllegalArgumentException("No file for geo-position: 'lat=" + lat + ", lon=" + lon + "'.");
-        }
+        return result.toString();
+    }
+
+    public int getResolution() {
+        return resolution;
     }
 
     static class Bounds {
