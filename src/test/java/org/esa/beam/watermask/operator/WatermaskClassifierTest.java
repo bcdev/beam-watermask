@@ -20,6 +20,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.awt.Point;
+import java.net.URL;
 
 import static org.junit.Assert.*;
 
@@ -78,49 +79,47 @@ public class WatermaskClassifierTest {
     }
 
     @Test
-    public void testIsInRange() throws Exception {
-
+    public void testGetZipfile() throws Exception {
         // north-west
 
-        assertTrue(WatermaskClassifier.isInRange("w002n51.img", 51.007f, -1.30f));
-        assertFalse(WatermaskClassifier.isInRange("w001n51.img", 51.007f, -1.30f));
+        assertEquals("w002n51.img", classifier.getZipfile(51.007f, -1.30f));
+        assertFalse("w001n51.img".equals(classifier.getZipfile(51.007f, -1.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("w002n48.img", 48.007f, -1.83f));
-        assertFalse(WatermaskClassifier.isInRange("w001n48.img", 48.007f, -1.83f));
+        assertEquals("w002n48.img", classifier.getZipfile(48.007f, -1.83f));
+        assertFalse("w001n48.img".equals(classifier.getZipfile(48.007f, -1.83f)));
 
         // north-east
 
-        assertTrue(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 0.30f));
-        assertFalse(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 0.30f));
+        assertEquals("e000n51.img", classifier.getZipfile(51.007f, 0.30f));
+        assertFalse("e001n51.img".equals(classifier.getZipfile(51.007f, 0.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("e000n49.img", 49.993961334228516f, 0.006230226717889309f));
-        assertFalse(WatermaskClassifier.isInRange("w001n49.img", 51.007f, 0.30f));
+        assertEquals("e000n49.img", classifier.getZipfile(49.993961334228516f, 0.006230226717889309f));
+        assertFalse("w001n49.img".equals(classifier.getZipfile(51.007f, 0.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("e001n51.img", 51.007f, 1.30f));
-        assertFalse(WatermaskClassifier.isInRange("e000n51.img", 51.007f, 1.30f));
+        assertEquals("e001n51.img", classifier.getZipfile(51.007f, 1.30f));
+        assertFalse("e000n51.img".equals(classifier.getZipfile(51.007f, 1.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("e000n45.img", 45.001f, 0.005f));
-        assertFalse(WatermaskClassifier.isInRange("w000n45.img", 45.001f, 0.005f));
+        assertEquals("e000n45.img", classifier.getZipfile(45.001f, 0.005f));
+        assertFalse("w000n45.img".equals(classifier.getZipfile(45.001f, 0.005f)));
 
-        assertTrue(WatermaskClassifier.isInRange("e111n30.img", 30.27f, 111.581f));
-        assertFalse(WatermaskClassifier.isInRange("e111n30.img", 29.01f, 112.01f));
+        assertEquals("e111n30.img", classifier.getZipfile(30.27f, 111.581f));
+        assertFalse("e111n30.img".equals(classifier.getZipfile(29.01f, 112.01f)));
 
         // south-west
 
-        assertTrue(WatermaskClassifier.isInRange("w001s01.img", -0.01f, -0.30f));
-        assertFalse(WatermaskClassifier.isInRange("w000s01.img", -0.01f, -0.30f));
+        assertEquals("w001s01.img", classifier.getZipfile(-0.01f, -0.30f));
+        assertFalse("w000s01.img".equals(classifier.getZipfile(-0.01f, -0.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("w002s02.img", -1.01f, -1.30f));
-        assertFalse(WatermaskClassifier.isInRange("w001s01.img", -1.01f, -1.30f));
+        assertEquals("w002s02.img", classifier.getZipfile(-1.01f, -1.30f));
+        assertFalse("w001s01.img".equals(classifier.getZipfile(-1.01f, -1.30f)));
 
         // south-east
 
-        assertTrue(WatermaskClassifier.isInRange("e000s01.img", -0.01f, 0.30f));
-        assertFalse(WatermaskClassifier.isInRange("e000s00.img", -0.01f, 0.30f));
+        assertEquals("e000s01.img", classifier.getZipfile(-0.01f, 0.30f));
+        assertFalse("e000s00.img".equals(classifier.getZipfile(-0.01f, 0.30f)));
 
-        assertTrue(WatermaskClassifier.isInRange("e001s01.img", -0.01f, 1.30f));
-        assertFalse(WatermaskClassifier.isInRange("e001s00.img", -0.01f, 1.30f));
-
+        assertEquals("e001s01.img", classifier.getZipfile(-0.01f, 1.30f));
+        assertFalse("e001s00.img".equals(classifier.getZipfile(-0.01f, 1.30f)));
     }
 
     @Test
@@ -160,5 +159,13 @@ public class WatermaskClassifierTest {
         pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.99999f, 0.0f);
         assertEquals(0, pixelPos.x);
         assertEquals(0, pixelPos.y);
+    }
+
+    @Test
+    public void testGetResource() throws Exception {
+        URL resource = getClass().getResource("image.properties");
+        assertNotNull(resource);
+        resource = getClass().getResource("50m\\e000n05.img");
+        assertNotNull(resource);
     }
 }

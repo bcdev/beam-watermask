@@ -18,7 +18,6 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.Assert;
 import org.esa.beam.jai.ImageHeader;
-import org.esa.beam.util.io.FileUtils;
 
 import javax.media.jai.JAI;
 import javax.media.jai.SourcelessOpImage;
@@ -26,11 +25,15 @@ import java.awt.Point;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Enumeration;
 import java.util.Properties;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * Responsible for tiled access on the data.
@@ -94,10 +97,19 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
 
     private InputStream createInputStream(int tileX, int tileY) throws IOException {
         String shapefile = classifier.getShapefile(new Point(tileX, tileY));
-        ZipFile zip = new ZipFile(shapefile);
-        shapefile = FileUtils.getFilenameWithoutExtension(shapefile);
-        shapefile = FileUtils.getFileNameFromPath(shapefile);
-        final ZipEntry entry = zip.getEntry(shapefile + ".img");
-        return zip.getInputStream(entry);
+        URL fileUrl = getClass().getResource(classifier.getResolution() + "m" + "/" + shapefile);
+//        ZipFile zip = new ZipFile(file);
+//        shapefile = FileUtils.getFilenameWithoutExtension(shapefile);
+//        shapefile = FileUtils.getFileNameFromPath(shapefile);
+//        final ZipEntry entry = zip.getEntry(shapefile + ".img");
+//        return zip.getInputStream(entry);
+        String file = URLDecoder.decode(fileUrl.getFile(), "UTF-8");
+        if (file.contains("!")) {
+            // read from jar
+            file = file.substring(6, file.lastIndexOf("!"));
+            final JarFile jarFile = new JarFile(file);
+            return jarFile.getInputStream(jarFile.getEntry("org/esa/beam/watermask/operator/" + classifier.getResolution() + "m/" + shapefile));
+        }
+        return new FileInputStream(file);
     }
 }
