@@ -95,21 +95,21 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         }
     }
 
-    private InputStream createInputStream(int tileX, int tileY) throws IOException {
+    private InputStream createInputStream(int tileX, int tileY) {
         String shapefile = classifier.getShapefile(new Point(tileX, tileY));
-        URL fileUrl = getClass().getResource(classifier.getResolution() + "m" + "/" + shapefile);
+        return getClass().getResourceAsStream(classifier.getResolution() + "m" + "/" + shapefile);
 //        ZipFile zip = new ZipFile(file);
 //        shapefile = FileUtils.getFilenameWithoutExtension(shapefile);
 //        shapefile = FileUtils.getFileNameFromPath(shapefile);
 //        final ZipEntry entry = zip.getEntry(shapefile + ".img");
 //        return zip.getInputStream(entry);
-        String file = URLDecoder.decode(fileUrl.getFile(), "UTF-8");
-        if (file.contains("!")) {
-            // read from jar
-            file = file.substring(6, file.lastIndexOf("!"));
-            final JarFile jarFile = new JarFile(file);
-            return jarFile.getInputStream(jarFile.getEntry("org/esa/beam/watermask/operator/" + classifier.getResolution() + "m/" + shapefile));
-        }
-        return new FileInputStream(file);
+//        String file = URLDecoder.decode(fileUrl.getFile(), "UTF-8");
+//        if (file.contains("!")) {
+//            // read from jar
+//            file = file.substring(6, file.lastIndexOf("!"));
+//            final JarFile jarFile = new JarFile(file);
+//            return jarFile.getInputStream(jarFile.getEntry("org/esa/beam/watermask/operator/" + classifier.getResolution() + "m/" + shapefile));
+//        }
+//        return new FileInputStream(file);
     }
 }
