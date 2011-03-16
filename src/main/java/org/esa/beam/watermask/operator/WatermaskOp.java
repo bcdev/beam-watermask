@@ -81,7 +81,6 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
-        System.out.println("WatermaskOp.computeTile: " + targetTile.getRectangle().toString());
         final Rectangle rectangle = targetTile.getRectangle();
         GeoPos geoPos = new GeoPos();
         try {
