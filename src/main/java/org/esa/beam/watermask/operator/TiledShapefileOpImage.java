@@ -49,7 +49,8 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         return new TiledShapefileOpImage(imageHeader, zipFile, classifier);
     }
 
-    private TiledShapefileOpImage(ImageHeader imageHeader, File zipFile, WatermaskClassifier classifier) throws IOException {
+    private TiledShapefileOpImage(ImageHeader imageHeader, File zipFile, WatermaskClassifier classifier) throws
+                                                                                                         IOException {
         super(imageHeader.getImageLayout(),
               null,
               imageHeader.getImageLayout().getSampleModel(null),
@@ -59,9 +60,8 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
               imageHeader.getImageLayout().getHeight(null));
         this.classifier = classifier;
         this.zipFile = new ZipFile(zipFile);
-        if (getTileCache() == null) {
-            setTileCache(JAI.getDefaultInstance().getTileCache());
-        }
+        // this image uses its own tile cache in order not to disturb the GPF tile cache.
+        setTileCache(JAI.createTileCache(50L * 1024 * 1024));
     }
 
     @Override
