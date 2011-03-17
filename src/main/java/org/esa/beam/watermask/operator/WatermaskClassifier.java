@@ -16,11 +16,15 @@
 
 package org.esa.beam.watermask.operator;
 
+import com.bc.ceres.core.NullProgressMonitor;
 import org.esa.beam.framework.datamodel.GeoPos;
+import org.esa.beam.util.ResourceInstaller;
+import org.esa.beam.util.SystemUtils;
 import org.esa.beam.watermask.util.ShapeFileRasterizer;
 
 import java.awt.Point;
 import java.awt.image.Raster;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -28,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.zip.ZipFile;
 
 /**
  * Classifies a pixel given by its geocoordinate as water pixel.
@@ -52,7 +57,7 @@ public class WatermaskClassifier {
     private HashMap<Point, String> tileShapefileMap;
     private Map<Bounds, Byte> fillDataMap;
     private final int resolution;
-    private static final String SHAPEFILE_DIR_PROPERTY_NAME = "org.esa.beam.shapeImageDir";
+    private File zipfilePath;
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -68,6 +73,9 @@ public class WatermaskClassifier {
             throw new IllegalArgumentException(
                     "Resolution needs to be " + RESOLUTION_50 + " or " + RESOLUTION_150 + ".");
         }
+
+        final File auxdataDir = installAuxdata();
+
         this.resolution = resolution;
         this.fill = fill;
         tileSize = ShapeFileRasterizer.computeSideLength(resolution);
@@ -84,7 +92,20 @@ public class WatermaskClassifier {
         final URL imageProperties = getClass().getResource("image.properties");
         properties.load(imageProperties.openStream());
 
-        image = TiledShapefileOpImage.create(properties, this);
+        zipfilePath = new File(auxdataDir, resolution + "m.zip");
+        image = TiledShapefileOpImage.create(properties, zipfilePath, this);
+    }
+
+    private File installAuxdata() throws IOException {
+        String auxdataSrcPath = "auxdata/images";
+        final String relativeDestPath = ".beam/" + "beam-watermask" +"/" + auxdataSrcPath;
+        File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
+        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
+
+        ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
+        resourceInstaller.install(".*", new NullProgressMonitor());
+
+        return auxdataTargetDir;
     }
 
     /**
@@ -103,8 +124,8 @@ public class WatermaskClassifier {
             // no shapefiles for latitudes  >= 60° or <= -60°
             return INVALID_VALUE;
         }
-        final String shapefile = getShapeFile(lat, lon);
-        if (shapefile == null) {
+        final String imgFileName = getImgFileName(lat, lon);
+        if (imgFileName == null) {
             final Bounds bounds = new Bounds(lat, lon);
             final Byte cachedValue = fillDataMap.get(bounds);
             if (cachedValue != null) {
@@ -118,7 +139,7 @@ public class WatermaskClassifier {
         final int x = (int) Math.floor((lon + 180.0) / pixelSize);
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
         final Point tileIndex = new Point(x / tileSize, y / tileSize);
-        tileShapefileMap.put(tileIndex, shapefile);
+        tileShapefileMap.put(tileIndex, imgFileName);
         final Raster tile = image.getTile(tileIndex.x, tileIndex.y);
         return tile.getSample(x, y, 0);
     }
@@ -175,7 +196,7 @@ public class WatermaskClassifier {
         }
     }
 
-    String getShapefile(Point tile) {
+    String getImgFileName(Point tile) {
         return tileShapefileMap.get(tile);
     }
 
@@ -188,7 +209,7 @@ public class WatermaskClassifier {
         return new Point(xCoord, yCoord);
     }
 
-    String getShapeFile(final float lat, final float lon) throws IOException {
+    String getImgFileName(final float lat, final float lon) throws IOException {
         final GeoPos geoPos = new GeoPos(lat, lon);
         final Bounds bounds = new Bounds(geoPos);
         final String cachedEntryName = cachedEntryNames.get(bounds);
@@ -199,17 +220,34 @@ public class WatermaskClassifier {
             return null;
         }
 
-        final String zipFile = getZipfile(lat, lon);
-        if( WatermaskClassifier.class.getResource(resolution + "m" + "/" + zipFile) == null) {
+        final String imgFileName = createImgFileName(lat, lon);
+        if(!existImgFile(imgFileName)) {
             banishedGeoPos.add(bounds);
             return null;
         }
 
-        cachedEntryNames.put(bounds, zipFile);
-        return zipFile;
+        cachedEntryNames.put(bounds, imgFileName);
+        return imgFileName;
     }
 
-    String getZipfile(float lat, float lon) {
+    private boolean existImgFile(String imgFileName)  {
+        ZipFile zipFile = null;
+        try {
+            zipFile = new ZipFile(zipfilePath);
+            return zipFile.getEntry(imgFileName) != null;
+        } catch (IOException ignored) {
+            return false;
+        }finally {
+            if(zipFile != null) {
+                try {
+                    zipFile.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    String createImgFileName(float lat, float lon) {
         final boolean geoPosIsWest = lon < 0;
         final boolean geoPosIsSouth = lat < 0;
         StringBuilder result = new StringBuilder();
@@ -242,12 +280,12 @@ public class WatermaskClassifier {
         return resolution;
     }
 
-    static class Bounds {
+    private static class Bounds {
 
-        private int minX;
-        private int maxX;
-        private int minY;
-        private int maxY;
+        private final int minX;
+        private final int maxX;
+        private final int minY;
+        private final int maxY;
 
         Bounds(float lat, float lon) {
             minX = (int) lon;
