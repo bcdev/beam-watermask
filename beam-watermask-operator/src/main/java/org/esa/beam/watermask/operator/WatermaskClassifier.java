@@ -17,6 +17,7 @@
 package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.NullProgressMonitor;
+import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
@@ -61,12 +62,19 @@ public class WatermaskClassifier {
 
     /**
      * Creates a new classifier instance on the given resolution.
+     * The classifier uses a tiled image in background to determine the if a
+     * given geo-position is over land or over water.
+     * Tiles do not exist if the whole region of the tile would only cover land or water.
+     * Were a tile does not exist a so called fill algorithm can be performed.
+     * In this case the next existing tile is searched and the nearest classification value
+     * for the given geo-position is returned.
+     * If the fill algorithm is not performed a value indicating invalid is returned.
      *
      * @param resolution The resolution specifying on source data is to be queried. Needs to be RESOLUTION_50 or
      *                   RESOLUTION_150.
      * @param fill       If fill algorithm shall be used.
      *
-     * @throws IOException If some IO-error occurs creating the sources.
+     * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
     public WatermaskClassifier(int resolution, boolean fill) throws IOException {
         if (resolution != RESOLUTION_50 && resolution != RESOLUTION_150) {
@@ -98,12 +106,12 @@ public class WatermaskClassifier {
 
     private File installAuxdata() throws IOException {
         String auxdataSrcPath = "auxdata/images";
-        final String relativeDestPath = ".beam/" + "beam-watermask" +"/" + auxdataSrcPath;
+        final String relativeDestPath = ".beam/" + "beam-watermask" + "/" + auxdataSrcPath;
         File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
         URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
 
         ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
-        resourceInstaller.install(".*", new NullProgressMonitor());
+        resourceInstaller.install(".*", ProgressMonitor.NULL);
 
         return auxdataTargetDir;
     }
@@ -117,7 +125,7 @@ public class WatermaskClassifier {
      * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
      *         about the position.
      *
-     * @throws IOException If some IO-error occurs reading the source file.
+     * @throws java.io.IOException If some IO-error occurs reading the source file.
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
         if (lat >= 60.0 || lat <= -60.0) {
@@ -152,8 +160,8 @@ public class WatermaskClassifier {
      *
      * @return true, if the geo-position is over water, false otherwise.
      *
-     * @throws IOException If some IO-error occurs reading the source file.
-     * @throws Exception   If there is no definite statement possible for the given position.
+     * @throws java.io.IOException If some IO-error occurs reading the source file.
+     * @throws Exception           If there is no definite statement possible for the given position.
      */
     public boolean isWater(float lat, float lon) throws Exception {
         final int waterMaskSample = getWaterMaskSample(lat, lon);
@@ -221,7 +229,7 @@ public class WatermaskClassifier {
         }
 
         final String imgFileName = createImgFileName(lat, lon);
-        if(!existImgFile(imgFileName)) {
+        if (!existImgFile(imgFileName)) {
             banishedGeoPos.add(bounds);
             return null;
         }
@@ -230,15 +238,15 @@ public class WatermaskClassifier {
         return imgFileName;
     }
 
-    private boolean existImgFile(String imgFileName)  {
+    private boolean existImgFile(String imgFileName) {
         ZipFile zipFile = null;
         try {
             zipFile = new ZipFile(zipfilePath);
             return zipFile.getEntry(imgFileName) != null;
         } catch (IOException ignored) {
             return false;
-        }finally {
-            if(zipFile != null) {
+        } finally {
+            if (zipFile != null) {
                 try {
                     zipFile.close();
                 } catch (IOException ignored) {
@@ -255,7 +263,7 @@ public class WatermaskClassifier {
         result.append(eastOrWest);
         lon -= geoPosIsWest ? 1 : 0;
         lat -= geoPosIsSouth ? 1 : 0;
-        int positiveLon = Math.abs((int)lon);
+        int positiveLon = Math.abs((int) lon);
         if (positiveLon >= 10 && positiveLon < 100) {
             result.append("0");
         } else if (positiveLon < 10) {
