@@ -84,7 +84,7 @@ public class ShapeFileRasterizer {
      * @param args Three arguments are needed: 1) directory containing shapefiles. 2) target directory.
      *             3) resolution in meters / pixel.
      *
-     * @throws IOException If some IO error occurs.
+     * @throws java.io.IOException If some IO error occurs.
      */
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
