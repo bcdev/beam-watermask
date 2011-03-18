@@ -16,7 +16,6 @@
 
 package org.esa.beam.watermask.operator;
 
-import com.bc.ceres.core.NullProgressMonitor;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.util.ResourceInstaller;
@@ -106,7 +105,7 @@ public class WatermaskClassifier {
 
     private File installAuxdata() throws IOException {
         String auxdataSrcPath = "auxdata/images";
-        final String relativeDestPath = ".beam/" + "beam-watermask" + "/" + auxdataSrcPath;
+        final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
         File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
         URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
 
