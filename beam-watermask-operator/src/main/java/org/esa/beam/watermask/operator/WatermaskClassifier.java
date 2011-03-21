@@ -28,10 +28,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 /**
@@ -49,15 +51,15 @@ public class WatermaskClassifier {
 
     private final int tileSize;
     private final boolean fill;
-
-    private List<Bounds> banishedGeoPos = new ArrayList<Bounds>();
-    private TiledShapefileOpImage image;
-    private int searchingDirection = 0;
-    private Map<Bounds, String> cachedEntryNames = new HashMap<Bounds, String>();
-    private HashMap<Point, String> tileShapefileMap;
-    private Map<Bounds, Byte> fillDataMap;
     private final int resolution;
-    private File zipfilePath;
+    private final File zipfilePath;
+
+    private final List<Bounds> banishedGeoPos;
+    private final TiledShapefileOpImage image;
+    private final AtomicInteger searchingDirection;
+    private final Map<Bounds, String> cachedEntryNames;
+    private final Map<Point, String> tileShapefileMap;
+    private final Map<Bounds, Byte> fillDataMap;
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -82,12 +84,14 @@ public class WatermaskClassifier {
         }
 
         final File auxdataDir = installAuxdata();
-
         this.resolution = resolution;
         this.fill = fill;
         tileSize = ShapeFileRasterizer.computeSideLength(resolution);
-        tileShapefileMap = new HashMap<Point, String>();
-        fillDataMap = new HashMap<Bounds, Byte>();
+        searchingDirection = new AtomicInteger(0);
+        banishedGeoPos = Collections.synchronizedList(new ArrayList<Bounds>());
+        cachedEntryNames = Collections.synchronizedMap(new HashMap<Bounds, String>());
+        tileShapefileMap = Collections.synchronizedMap(new HashMap<Point, String>());
+        fillDataMap = Collections.synchronizedMap(new HashMap<Bounds, Byte>());
 
         int width = tileSize * 360;
         int height = tileSize * 180;
@@ -174,7 +178,7 @@ public class WatermaskClassifier {
     private byte getTypeOfAdjacentTile(float inputLat, float inputLon) {
         float lat = inputLat;
         float lon = inputLon;
-        switch (searchingDirection) {
+        switch (searchingDirection.get()) {
             case 0:
                 // to the top
                 lat = (float) ((int) lat + 1.00001);
@@ -193,7 +197,7 @@ public class WatermaskClassifier {
                 break;
         }
 
-        searchingDirection = (int) (Math.random() * 4);
+        searchingDirection.set((int) (Math.random() * 4));
 
         try {
             final byte waterMaskSample = (byte) getWaterMaskSample(lat, lon);
