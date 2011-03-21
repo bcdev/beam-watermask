@@ -106,6 +106,6 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
     private InputStream createInputStream(int tileX, int tileY) throws IOException {
         String shapefile = classifier.getImgFileName(new Point(tileX, tileY));
         final ZipEntry entry = zipFile.getEntry(shapefile);
-        return zipFile.getInputStream(entry);// todo entry can be null
+        return zipFile.getInputStream(entry);
     }
 }
