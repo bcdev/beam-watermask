@@ -11,7 +11,7 @@
 
     <artifactId>beam-watermask-auxdata</artifactId>
     <name>BEAM Watermask Auxdata</name>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
     <description>Provides the auxiliary data for the land-water mask.</description>
 
      <build>
