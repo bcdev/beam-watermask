@@ -34,8 +34,8 @@ public class WatermaskClassifierTest {
 
     @Before
     public void setUp() throws Exception {
-        classifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50, false);
-        fillClassifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50, true);
+        classifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50);
+        fillClassifier = new WatermaskClassifier(WatermaskClassifier.RESOLUTION_50);
     }
 
     @Test
@@ -82,44 +82,44 @@ public class WatermaskClassifierTest {
     public void testGetZipfile() throws Exception {
         // north-west
 
-        assertEquals("w002n51.img", classifier.createImgFileName(51.007f, -1.30f));
-        assertFalse("w001n51.img".equals(classifier.createImgFileName(51.007f, -1.30f)));
+        assertEquals("w002n51.img", WatermaskUtils.createImgFileName(51.007f, -1.30f));
+        assertFalse("w001n51.img".equals(WatermaskUtils.createImgFileName(51.007f, -1.30f)));
 
-        assertEquals("w002n48.img", classifier.createImgFileName(48.007f, -1.83f));
-        assertFalse("w001n48.img".equals(classifier.createImgFileName(48.007f, -1.83f)));
+        assertEquals("w002n48.img", WatermaskUtils.createImgFileName(48.007f, -1.83f));
+        assertFalse("w001n48.img".equals(WatermaskUtils.createImgFileName(48.007f, -1.83f)));
 
         // north-east
 
-        assertEquals("e000n51.img", classifier.createImgFileName(51.007f, 0.30f));
-        assertFalse("e001n51.img".equals(classifier.createImgFileName(51.007f, 0.30f)));
+        assertEquals("e000n51.img", WatermaskUtils.createImgFileName(51.007f, 0.30f));
+        assertFalse("e001n51.img".equals(WatermaskUtils.createImgFileName(51.007f, 0.30f)));
 
-        assertEquals("e000n49.img", classifier.createImgFileName(49.993961334228516f, 0.006230226717889309f));
-        assertFalse("w001n49.img".equals(classifier.createImgFileName(51.007f, 0.30f)));
+        assertEquals("e000n49.img", WatermaskUtils.createImgFileName(49.993961334228516f, 0.006230226717889309f));
+        assertFalse("w001n49.img".equals(WatermaskUtils.createImgFileName(51.007f, 0.30f)));
 
-        assertEquals("e001n51.img", classifier.createImgFileName(51.007f, 1.30f));
-        assertFalse("e000n51.img".equals(classifier.createImgFileName(51.007f, 1.30f)));
+        assertEquals("e001n51.img", WatermaskUtils.createImgFileName(51.007f, 1.30f));
+        assertFalse("e000n51.img".equals(WatermaskUtils.createImgFileName(51.007f, 1.30f)));
 
-        assertEquals("e000n45.img", classifier.createImgFileName(45.001f, 0.005f));
-        assertFalse("w000n45.img".equals(classifier.createImgFileName(45.001f, 0.005f)));
+        assertEquals("e000n45.img", WatermaskUtils.createImgFileName(45.001f, 0.005f));
+        assertFalse("w000n45.img".equals(WatermaskUtils.createImgFileName(45.001f, 0.005f)));
 
-        assertEquals("e111n30.img", classifier.createImgFileName(30.27f, 111.581f));
-        assertFalse("e111n30.img".equals(classifier.createImgFileName(29.01f, 112.01f)));
+        assertEquals("e111n30.img", WatermaskUtils.createImgFileName(30.27f, 111.581f));
+        assertFalse("e111n30.img".equals(WatermaskUtils.createImgFileName(29.01f, 112.01f)));
 
         // south-west
 
-        assertEquals("w001s01.img", classifier.createImgFileName(-0.01f, -0.30f));
-        assertFalse("w000s01.img".equals(classifier.createImgFileName(-0.01f, -0.30f)));
+        assertEquals("w001s01.img", WatermaskUtils.createImgFileName(-0.01f, -0.30f));
+        assertFalse("w000s01.img".equals(WatermaskUtils.createImgFileName(-0.01f, -0.30f)));
 
-        assertEquals("w002s02.img", classifier.createImgFileName(-1.01f, -1.30f));
-        assertFalse("w001s01.img".equals(classifier.createImgFileName(-1.01f, -1.30f)));
+        assertEquals("w002s02.img", WatermaskUtils.createImgFileName(-1.01f, -1.30f));
+        assertFalse("w001s01.img".equals(WatermaskUtils.createImgFileName(-1.01f, -1.30f)));
 
         // south-east
 
-        assertEquals("e000s01.img", classifier.createImgFileName(-0.01f, 0.30f));
-        assertFalse("e000s00.img".equals(classifier.createImgFileName(-0.01f, 0.30f)));
+        assertEquals("e000s01.img", WatermaskUtils.createImgFileName(-0.01f, 0.30f));
+        assertFalse("e000s00.img".equals(WatermaskUtils.createImgFileName(-0.01f, 0.30f)));
 
-        assertEquals("e001s01.img", classifier.createImgFileName(-0.01f, 1.30f));
-        assertFalse("e001s00.img".equals(classifier.createImgFileName(-0.01f, 1.30f)));
+        assertEquals("e001s01.img", WatermaskUtils.createImgFileName(-0.01f, 1.30f));
+        assertFalse("e001s00.img".equals(WatermaskUtils.createImgFileName(-0.01f, 1.30f)));
     }
 
     @Test

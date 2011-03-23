@@ -16,6 +16,7 @@
 
 package org.esa.beam.watermask.util;
 
+import org.esa.beam.watermask.operator.WatermaskUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
@@ -87,28 +88,13 @@ class ShapeFileRasterizer {
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
-        int sideLength = computeSideLength(Integer.parseInt(args[2]));
+        int sideLength = WatermaskUtils.computeSideLength(Integer.parseInt(args[2]));
         boolean createImage = false;
         if(args.length == 4){
             createImage = Boolean.parseBoolean(args[3]);
         }
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(targetDir);
         rasterizer.rasterizeShapeFiles(resourceDir, sideLength, createImage);
-    }
-
-    /**
-     * Computes the side length of the images to be generated for the given resolution.
-     *
-     * @param resolution The resolution.
-     *
-     * @return The side length of the images to be generated.
-     */
-    public static int computeSideLength(int resolution) {
-        final int pixelXCount = 40024000 / resolution;
-        final int pixelXCountPerTile = pixelXCount / 360;
-        // these two lines needed to create a multiple of 8
-        final int temp = pixelXCountPerTile / 8;
-        return temp * 8;
     }
 
     void rasterizeShapeFiles(File directory, int tileSize, boolean createImage) throws IOException {

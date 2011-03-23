@@ -37,7 +37,7 @@ import java.io.IOException;
 
 /**
  * GPF-Operator responsible for creating a product, which contains a single band: a land/water-mask based on
- * SRTM-shapefiles.
+ * SRTM shape files.
  *
  * @author Thomas Storm
  */
@@ -59,11 +59,6 @@ public class WatermaskOp extends Operator {
                defaultValue = "50", valueSet = {"50", "150"})
     private int resolution;
 
-    @Parameter(description = "Automatically fill pixels where no shapefile exists",
-               label = "Automatically fill pixels where no shapefile exists",
-               defaultValue = "true")
-    private boolean fill;
-
     @TargetProduct
     private Product targetProduct;
 
@@ -73,9 +68,9 @@ public class WatermaskOp extends Operator {
     public void initialize() throws OperatorException {
         initTargetProduct();
         try {
-            classifier = new WatermaskClassifier(resolution, fill);
+            classifier = new WatermaskClassifier(resolution);
         } catch (IOException e) {
-            throw new OperatorException("Error creating Watermask Classifier.", e);
+            throw new OperatorException("Error creating class WatermaskClassifier.", e);
         }
     }
 
@@ -87,7 +82,7 @@ public class WatermaskOp extends Operator {
             final PixelPos pixelPos = new PixelPos();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    pixelPos.setLocation(x, y);
+                    pixelPos.setLocation(x + 0.5f, y + 0.5);
                     targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
                     final int waterMaskSample = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
                     targetTile.setSample(x, y, waterMaskSample);
