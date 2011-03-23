@@ -65,7 +65,7 @@ import java.util.zip.ZipFile;
  *
  * @author Thomas Storm
  */
-public class ShapeFileRasterizer {
+class ShapeFileRasterizer {
 
     private final File targetDir;
 

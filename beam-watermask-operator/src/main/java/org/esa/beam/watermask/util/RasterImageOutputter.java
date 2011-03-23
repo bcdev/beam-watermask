@@ -37,12 +37,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-/**
- * TODO fill out or delete
- *
- * @author Thomas Storm
- */
-public class RasterImageOutputter {
+
+class RasterImageOutputter {
 
     private static final int TILE_WIDTH = ShapeFileRasterizer.computeSideLength(50);
 
