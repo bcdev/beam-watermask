@@ -1,6 +1,7 @@
 package org.esa.beam.watermask.util;
 
 import junit.framework.TestCase;
+import org.esa.beam.watermask.operator.WatermaskUtils;
 import org.junit.Test;
 
 import java.awt.image.BufferedImage;
@@ -19,7 +20,7 @@ public class ShapeFileRasterizerTest extends TestCase {
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(targetDir);
         final URL shapeUrl = getClass().getResource("e000n05f.shp");
         final File shapeFile = new File(shapeUrl.getFile());
-        final int resolution = ShapeFileRasterizer.computeSideLength(150);
+        final int resolution = WatermaskUtils.computeSideLength(150);
         final BufferedImage image = rasterizer.createImage(shapeFile, resolution);
 
         // test some known values
@@ -36,7 +37,7 @@ public class ShapeFileRasterizerTest extends TestCase {
         final File targetDir = new File("");
         final ShapeFileRasterizer rasterizer = new ShapeFileRasterizer(targetDir);
         final URL shapeUrl = getClass().getResource("e000n05f.zip");
-         final int tileSize = ShapeFileRasterizer.computeSideLength(150);
+         final int tileSize = WatermaskUtils.computeSideLength(150);
          final List<File> tempFiles;
          final ZipFile zipFile = new ZipFile(shapeUrl.getFile());
          try {

@@ -19,6 +19,7 @@ package org.esa.beam.watermask.util;
 import org.esa.beam.util.io.FileUtils;
 import org.esa.beam.util.math.Histogram;
 import org.esa.beam.util.math.Range;
+import org.esa.beam.watermask.operator.WatermaskUtils;
 
 import javax.imageio.ImageIO;
 import java.awt.Point;
@@ -40,7 +41,7 @@ import java.util.zip.ZipFile;
 
 class RasterImageOutputter {
 
-    private static final int TILE_WIDTH = ShapeFileRasterizer.computeSideLength(50);
+    private static final int TILE_WIDTH = WatermaskUtils.computeSideLength(50);
 
     public static void main(String[] args) throws IOException {
 

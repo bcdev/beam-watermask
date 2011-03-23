@@ -18,16 +18,20 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.Assert;
 import org.esa.beam.jai.ImageHeader;
+import org.esa.beam.util.ImageUtils;
 
 import javax.media.jai.JAI;
 import javax.media.jai.SourcelessOpImage;
 import java.awt.Point;
+import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -39,41 +43,44 @@ import java.util.zip.ZipFile;
  */
 public class TiledShapefileOpImage extends SourcelessOpImage {
 
-    private WatermaskClassifier classifier;
     private ZipFile zipFile;
+    private Properties missingTiles;
+    private SampleModel rawImgSampleModel;
+    private WritableRaster landRaster;
+    private WritableRaster waterRaster;
+    private WritableRaster invalidRaster;
 
-    public static TiledShapefileOpImage create(Properties defaultImageProperties,
-                                               File zipFile, WatermaskClassifier classifier) throws IOException {
+    public static TiledShapefileOpImage create(Properties defaultImageProperties, File zipFile) throws IOException {
 
         final ImageHeader imageHeader = ImageHeader.load(defaultImageProperties, null);
-        return new TiledShapefileOpImage(imageHeader, zipFile, classifier);
+        return new TiledShapefileOpImage(imageHeader, zipFile);
     }
 
-    private TiledShapefileOpImage(ImageHeader imageHeader, File zipFile, WatermaskClassifier classifier) throws
-                                                                                                         IOException {
+    private TiledShapefileOpImage(ImageHeader imageHeader, File zipFile) throws IOException {
         super(imageHeader.getImageLayout(),
               null,
-              imageHeader.getImageLayout().getSampleModel(null),
+              ImageUtils.createSingleBandedSampleModel(DataBuffer.TYPE_BYTE,
+                                                       imageHeader.getImageLayout().getSampleModel(null).getWidth(),
+                                                       imageHeader.getImageLayout().getSampleModel(null).getHeight()),
               imageHeader.getImageLayout().getMinX(null),
               imageHeader.getImageLayout().getMinY(null),
               imageHeader.getImageLayout().getWidth(null),
               imageHeader.getImageLayout().getHeight(null));
-        this.classifier = classifier;
         this.zipFile = new ZipFile(zipFile);
         // this image uses its own tile cache in order not to disturb the GPF tile cache.
+        missingTiles = new Properties();
+        missingTiles.load(getClass().getResourceAsStream("MissingTiles.properties"));
         setTileCache(JAI.createTileCache(50L * 1024 * 1024));
+        rawImgSampleModel = imageHeader.getImageLayout().getSampleModel(null);
     }
 
     @Override
     public Raster computeTile(int tileX, int tileY) {
-        final Point location = new Point(tileXToX(tileX), tileYToY(tileY));
-        final WritableRaster targetRaster = createWritableRaster(sampleModel, location);
         try {
-            readRawDataTile(targetRaster, tileX, tileY);
+            return readRawDataTile(tileX, tileY);
         } catch (IOException e) {
             throw new RuntimeException("Failed to read image tile.", e);
         }
-        return targetRaster;
     }
 
     @Override
@@ -85,10 +92,29 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         }
     }
 
-    private void readRawDataTile(WritableRaster targetRaster, int tileX, int tileY) throws IOException {
-        final InputStream inputStream = createInputStream(tileX, tileY);
+    private Raster readRawDataTile(int tileX, int tileY) throws IOException {
+        final Point location = new Point(tileXToX(tileX), tileYToY(tileY));
+
+        // 89 not 90, because tile coordinates are given for lower left corner
+        final String imgFileName = WatermaskUtils.createImgFileName(89 - tileY, tileX - 180);
+        final String missingTileValue = missingTiles.getProperty(imgFileName.substring(0, imgFileName.indexOf('.')));
+        if(missingTileValue != null) {
+            final byte tileValue = Byte.parseByte(missingTileValue);
+            switch(tileValue) {
+                case 0:
+                    return getLandRaster(location, tileValue);
+                case 1:
+                    return getWaterRaster(location, tileValue);
+                default:
+                    return getInvalidRaster(location, tileValue);
+            }
+        }
+
+
+        final InputStream inputStream = createInputStream(imgFileName);
+        final WritableRaster targetRaster = createWritableRaster(rawImgSampleModel, location);
+        final byte[] data = ((DataBufferByte) targetRaster.getDataBuffer()).getData();
         try {
-            final byte[] data = ((DataBufferByte) targetRaster.getDataBuffer()).getData();
             int count = 0;
             int amount = data.length;
             while (count < data.length) {
@@ -101,11 +127,39 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
         } finally {
             inputStream.close();
         }
+        return targetRaster;
     }
 
-    private InputStream createInputStream(int tileX, int tileY) throws IOException {
-        String shapefile = classifier.getImgFileName(new Point(tileX, tileY));
-        final ZipEntry entry = zipFile.getEntry(shapefile);
+    private Raster getLandRaster(Point location, byte tileValue) {
+        if(landRaster == null) {
+            landRaster = createRaster(tileValue);
+        }
+        return landRaster.createTranslatedChild(location.x, location.y);
+    }
+
+    private Raster getWaterRaster(Point location, byte tileValue) {
+        if(waterRaster == null) {
+            waterRaster = createRaster(tileValue);
+        }
+        return waterRaster.createTranslatedChild(location.x, location.y);
+    }
+
+    private Raster getInvalidRaster(Point location, byte tileValue) {
+        if(invalidRaster == null) {
+            invalidRaster = createRaster(tileValue);
+        }
+        return invalidRaster.createTranslatedChild(location.x, location.y);
+    }
+
+    private WritableRaster createRaster(byte tileValue) {
+        WritableRaster raster = createWritableRaster(sampleModel, new Point(0,0));
+        final byte[] data = ((DataBufferByte) raster.getDataBuffer()).getData();
+        Arrays.fill(data, tileValue);
+        return  raster;
+    }
+
+    private InputStream createInputStream(String imgFileName) throws IOException {
+        final ZipEntry entry = zipFile.getEntry(imgFileName);
         return zipFile.getInputStream(entry);
     }
 }
