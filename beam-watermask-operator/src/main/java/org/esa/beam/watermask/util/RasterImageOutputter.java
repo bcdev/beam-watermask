@@ -17,6 +17,8 @@
 package org.esa.beam.watermask.util;
 
 import org.esa.beam.util.io.FileUtils;
+import org.esa.beam.util.math.Histogram;
+import org.esa.beam.util.math.Range;
 
 import javax.imageio.ImageIO;
 import java.awt.Point;
@@ -61,6 +63,8 @@ public class RasterImageOutputter {
                     executorService.submit(new ImageWriterRunnable(imgFile, outputFile));
                 }
             }
+
+            executorService.shutdown();
             while (!executorService.isTerminated()) {
                 try {
                     executorService.awaitTermination(1000, TimeUnit.MILLISECONDS);
@@ -68,10 +72,9 @@ public class RasterImageOutputter {
                     e.printStackTrace();
                 }
             }
-            executorService.shutdown();
         } else {
             final InputStream inputStream;
-            if (args.length == 2) {
+            if (file.getName().toLowerCase().endsWith(".zip")) {
                 ZipFile zipFile = new ZipFile(file);
                 String shapefile = args[1];
                 final ZipEntry entry = zipFile.getEntry(shapefile);
@@ -82,10 +85,9 @@ public class RasterImageOutputter {
             writeImage(inputStream, new File(args[args.length - 1]));
         }
 
-        System.exit(0);
     }
 
-    private static void writeImage(InputStream inputStream, File outputFile) throws IOException {
+    private static boolean writeImage(InputStream inputStream, File outputFile) throws IOException {
         WritableRaster targetRaster = Raster.createPackedRaster(0, TILE_WIDTH, TILE_WIDTH, 1, 1,
                                                                 new Point(0, 0));
 
@@ -93,7 +95,21 @@ public class RasterImageOutputter {
         inputStream.read(data);
         final BufferedImage image = new BufferedImage(TILE_WIDTH, TILE_WIDTH, BufferedImage.TYPE_BYTE_BINARY);
         image.setData(targetRaster);
+        boolean valid = validateImage(image);
         ImageIO.write(image, "png", outputFile);
+        return valid;
+    }
+
+    private static boolean validateImage(BufferedImage image) {
+        final Histogram histogram = Histogram.computeHistogram(image, null, 3, new Range(0, 3));
+        final int[] binCounts = histogram.getBinCounts();
+        // In both bins must be values
+        for (int binCount : binCounts) {
+            if (binCount == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static class ImageWriterRunnable implements Runnable {
@@ -112,8 +128,12 @@ public class RasterImageOutputter {
             InputStream fileInputStream = null;
             try {
                 fileInputStream = new FileInputStream(inputFile);
-                writeImage(fileInputStream, outputFile);
-                System.out.printf("Written: %s%n", outputFile);
+                final boolean valid = writeImage(fileInputStream, outputFile);
+                if(!valid) {
+                    System.out.printf("Not valid: %s%n", outputFile);
+                }else {
+                    System.out.printf("Written: %s%n", outputFile);
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
