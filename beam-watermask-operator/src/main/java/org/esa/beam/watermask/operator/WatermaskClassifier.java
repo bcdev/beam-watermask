@@ -102,7 +102,11 @@ public class WatermaskClassifier {
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
         final double pixelSize = 360.0 / image.getWidth();
-        final int x = (int) Math.floor((lon + 180.0) / pixelSize);
+        double tempLon = lon + 180.0;
+        if(tempLon >=360) {
+            tempLon %= 360;
+        }
+        final int x = (int) Math.floor(tempLon / pixelSize);
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         return tile.getSample(x, y, 0);
