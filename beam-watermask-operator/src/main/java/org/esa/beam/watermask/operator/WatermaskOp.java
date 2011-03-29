@@ -18,6 +18,7 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
+import org.esa.beam.framework.datamodel.GeoCoding;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
@@ -66,11 +67,23 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void initialize() throws OperatorException {
+        validateSourceProduct();
         initTargetProduct();
         try {
             classifier = new WatermaskClassifier(resolution);
         } catch (IOException e) {
             throw new OperatorException("Error creating class WatermaskClassifier.", e);
+        }
+    }
+
+    private void validateSourceProduct() {
+        final GeoCoding geoCoding = sourceProduct.getGeoCoding();
+        if(geoCoding == null) {
+            throw new OperatorException("The source product must be geo-coded.");
+        }
+        if(!geoCoding.canGetGeoPos()) {
+            throw new OperatorException("The geo-coding of the source product can not be used.\n" +
+                                        "It does not provide the geo-position for a pixel position.");
         }
     }
 
