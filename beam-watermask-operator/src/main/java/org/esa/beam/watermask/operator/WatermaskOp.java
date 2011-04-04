@@ -67,23 +67,13 @@ public class WatermaskOp extends Operator {
 
     @Override
     public void initialize() throws OperatorException {
+        validateParameter();
         validateSourceProduct();
         initTargetProduct();
         try {
             classifier = new WatermaskClassifier(resolution);
         } catch (IOException e) {
             throw new OperatorException("Error creating class WatermaskClassifier.", e);
-        }
-    }
-
-    private void validateSourceProduct() {
-        final GeoCoding geoCoding = sourceProduct.getGeoCoding();
-        if(geoCoding == null) {
-            throw new OperatorException("The source product must be geo-coded.");
-        }
-        if(!geoCoding.canGetGeoPos()) {
-            throw new OperatorException("The geo-coding of the source product can not be used.\n" +
-                                        "It does not provide the geo-position for a pixel position.");
         }
     }
 
@@ -106,14 +96,26 @@ public class WatermaskOp extends Operator {
         }
     }
 
-    private void initTargetProduct() {
+    private void validateParameter() {
         if (resolution != WatermaskClassifier.RESOLUTION_50 && resolution != WatermaskClassifier.RESOLUTION_150) {
-            throw new OperatorException("Resolution needs to be either " + WatermaskClassifier.RESOLUTION_50 + " or " +
-                                        WatermaskClassifier.RESOLUTION_150 + ".");
+            throw new OperatorException(String.format("Resolution needs to be either %d or %d.",
+                                                      WatermaskClassifier.RESOLUTION_50,
+                                                      WatermaskClassifier.RESOLUTION_150));
         }
-        if (sourceProduct.getGeoCoding() == null) {
-            throw new OperatorException("Input product is not geo-referenced.");
+    }
+
+    private void validateSourceProduct() {
+        final GeoCoding geoCoding = sourceProduct.getGeoCoding();
+        if (geoCoding == null) {
+            throw new OperatorException("The source product must be geo-coded.");
         }
+        if (!geoCoding.canGetGeoPos()) {
+            throw new OperatorException("The geo-coding of the source product can not be used.\n" +
+                                        "It does not provide the geo-position for a pixel position.");
+        }
+    }
+
+    private void initTargetProduct() {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
         final Band band = targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
