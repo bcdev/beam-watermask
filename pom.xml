@@ -14,6 +14,12 @@
         <module>beam-watermask-operator</module>
     </modules>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <beam.version>4.9</beam.version>
+        <geotools.version>2.6.5</geotools.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -93,12 +99,6 @@
             <uniqueVersion>false</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <beam.version>4.9</beam.version>
-        <geotools.version>2.6.5</geotools.version>
-    </properties>
 
     <build>
         <plugins>
