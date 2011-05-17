@@ -41,7 +41,7 @@ import java.util.zip.ZipFile;
  *
  * @author Thomas Storm
  */
-public class TiledShapefileOpImage extends SourcelessOpImage {
+public class WatermaskOpImage extends SourcelessOpImage {
 
     private ZipFile zipFile;
     private Properties missingTiles;
@@ -50,13 +50,13 @@ public class TiledShapefileOpImage extends SourcelessOpImage {
     private WritableRaster waterRaster;
     private WritableRaster invalidRaster;
 
-    public static TiledShapefileOpImage create(Properties defaultImageProperties, File zipFile) throws IOException {
+    public static WatermaskOpImage create(Properties defaultImageProperties, File zipFile) throws IOException {
 
         final ImageHeader imageHeader = ImageHeader.load(defaultImageProperties, null);
-        return new TiledShapefileOpImage(imageHeader, zipFile);
+        return new WatermaskOpImage(imageHeader, zipFile);
     }
 
-    private TiledShapefileOpImage(ImageHeader imageHeader, File zipFile) throws IOException {
+    private WatermaskOpImage(ImageHeader imageHeader, File zipFile) throws IOException {
         super(imageHeader.getImageLayout(),
               null,
               ImageUtils.createSingleBandedSampleModel(DataBuffer.TYPE_BYTE,
