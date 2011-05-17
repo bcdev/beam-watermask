@@ -19,7 +19,6 @@ package org.esa.beam.watermask.operator;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.awt.Point;
 import java.net.URL;
 
 import static org.junit.Assert.*;
@@ -120,45 +119,6 @@ public class WatermaskClassifierTest {
 
         assertEquals("e001s01.img", WatermaskUtils.createImgFileName(-0.01f, 1.30f));
         assertFalse("e001s00.img".equals(WatermaskUtils.createImgFileName(-0.01f, 1.30f)));
-    }
-
-    @Test
-    public void testGeoPosToPixel() throws Exception {
-        Point pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0f);
-        assertEquals(0, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.5f);
-        assertEquals(512, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0009765f);
-        assertEquals(0, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.0009766f);
-        assertEquals(1, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0f, 0.99999f);
-        assertEquals(1023, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.5f, 0.0f);
-        assertEquals(0, pixelPos.x);
-        assertEquals(511, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0009765f, 0.5f);
-        assertEquals(512, pixelPos.x);
-        assertEquals(1023, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.0009766f, 0.5f);
-        assertEquals(512, pixelPos.x);
-        assertEquals(1022, pixelPos.y);
-
-        pixelPos = WatermaskClassifier.geoPosToPixel(1024, 1024, 0.99999f, 0.0f);
-        assertEquals(0, pixelPos.x);
-        assertEquals(0, pixelPos.y);
     }
 
     @Test

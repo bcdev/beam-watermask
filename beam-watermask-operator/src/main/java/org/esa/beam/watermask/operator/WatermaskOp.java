@@ -18,6 +18,7 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
+import org.esa.beam.framework.datamodel.FlagCoding;
 import org.esa.beam.framework.datamodel.GeoCoding;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
@@ -118,7 +119,11 @@ public class WatermaskOp extends Operator {
     private void initTargetProduct() {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        final Band band = targetProduct.addBand("Land-Water-Mask", ProductData.TYPE_UINT8);
+        final Band band = targetProduct.addBand("land_water_flag", ProductData.TYPE_UINT8);
+        final FlagCoding flagCoding = new FlagCoding("land_water");
+        targetProduct.getFlagCodingGroup().add(flagCoding);
+        flagCoding.addFlag("Water", WatermaskClassifier.WATER_VALUE, "Pixel is water pixel");
+        band.setSampleCoding(flagCoding);
         band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
         if (band.getGeoCoding() == null) {

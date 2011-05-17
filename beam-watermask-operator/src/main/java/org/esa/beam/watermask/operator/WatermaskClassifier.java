@@ -20,7 +20,6 @@ import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
 
-import java.awt.Point;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
@@ -38,20 +37,21 @@ public class WatermaskClassifier {
     public static final int RESOLUTION_50 = 50;
     public static final int RESOLUTION_150 = 150;
 
-    private final TiledShapefileOpImage image;
+    private final WatermaskOpImage image;
 
     /**
      * Creates a new classifier instance on the given resolution.
      * The classifier uses a tiled image in background to determine the if a
      * given geo-position is over land or over water.
      * Tiles do not exist if the whole region of the tile would only cover land or water.
-     * Were a tile does not exist a so called fill algorithm can be performed.
+     * Where a tile does not exist a so called fill algorithm can be performed.
      * In this case the next existing tile is searched and the nearest classification value
      * for the given geo-position is returned.
      * If the fill algorithm is not performed a value indicating invalid is returned.
      *
      * @param resolution The resolution specifying on source data is to be queried. Needs to be RESOLUTION_50 or
      *                   RESOLUTION_150.
+     *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
     public WatermaskClassifier(int resolution) throws IOException {
@@ -74,7 +74,7 @@ public class WatermaskClassifier {
         properties.load(imageProperties.openStream());
 
         File zipFilePath = new File(auxdataDir, resolution + "m.zip");
-        image = TiledShapefileOpImage.create(properties, zipFilePath);
+        image = WatermaskOpImage.create(properties, zipFilePath);
     }
 
     private File installAuxdata() throws IOException {
@@ -90,7 +90,7 @@ public class WatermaskClassifier {
     }
 
     /**
-     * Returns the sample value at the given geo-position.
+     * Returns the sample value at the given geo-position, regardless of the source resolution.
      *
      * @param lat The latitude value.
      * @param lon The longitude value.
@@ -103,7 +103,7 @@ public class WatermaskClassifier {
     public int getWaterMaskSample(float lat, float lon) throws IOException {
         final double pixelSize = 360.0 / image.getWidth();
         double tempLon = lon + 180.0;
-        if(tempLon >=360) {
+        if (tempLon >= 360) {
             tempLon %= 360;
         }
         final int x = (int) Math.floor(tempLon / pixelSize);
@@ -125,15 +125,6 @@ public class WatermaskClassifier {
     public boolean isWater(float lat, float lon) throws IOException {
         final int waterMaskSample = getWaterMaskSample(lat, lon);
         return waterMaskSample == WATER_VALUE;
-    }
-
-    static Point geoPosToPixel(int width, int height, float lat, float lon) {
-        // exploiting that shapefiles are of size '1° squared'
-        double latitudePart = Math.abs(lat - (int) lat);
-        double longitudePart = Math.abs(lon - (int) lon);
-        final int xCoord = (int) (width * longitudePart);
-        final int yCoord = height - (int) (height * latitudePart) - 1;
-        return new Point(xCoord, yCoord);
     }
 
 }
