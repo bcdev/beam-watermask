@@ -98,7 +98,8 @@ public class WatermaskOpImage extends SourcelessOpImage {
         // 89 not 90, because tile coordinates are given for lower left corner
         final String imgFileName = WatermaskUtils.createImgFileName(89 - tileY, tileX - 180);
         final String missingTileValue = missingTiles.getProperty(imgFileName.substring(0, imgFileName.indexOf('.')));
-        if(missingTileValue != null) {
+        final boolean tileIsMissing = missingTileValue != null;
+        if(tileIsMissing) {
             final byte tileValue = Byte.parseByte(missingTileValue);
             switch(tileValue) {
                 case 0:
@@ -109,7 +110,6 @@ public class WatermaskOpImage extends SourcelessOpImage {
                     return getInvalidRaster(location, tileValue);
             }
         }
-
 
         final InputStream inputStream = createInputStream(imgFileName);
         final WritableRaster targetRaster = createWritableRaster(rawImgSampleModel, location);

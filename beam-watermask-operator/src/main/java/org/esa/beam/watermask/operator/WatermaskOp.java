@@ -18,7 +18,6 @@ package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
-import org.esa.beam.framework.datamodel.FlagCoding;
 import org.esa.beam.framework.datamodel.GeoCoding;
 import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
@@ -57,13 +56,16 @@ public class WatermaskOp extends Operator {
                    label = "Name")
     private Product sourceProduct;
 
-    @Parameter(description = "Resolution in m/pixel", label = "Resolution in m/pixel",
-               defaultValue = "50", valueSet = {"50", "150"})
+    @Parameter(description = "Specifies on which resolution the water mask shall be based.", unit = "m/pixel",
+               label = "Resolution", defaultValue = "50", valueSet = {"50", "150"})
     private int resolution;
+
+    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask.",
+               label = "Subsampling factor", defaultValue = "10", notNull = true)
+    private int subSamplingFactor;
 
     @TargetProduct
     private Product targetProduct;
-
     private WatermaskClassifier classifier;
 
     @Override
@@ -84,12 +86,21 @@ public class WatermaskOp extends Operator {
         GeoPos geoPos = new GeoPos();
         try {
             final PixelPos pixelPos = new PixelPos();
+            final GeoCoding geoCoding = targetBand.getGeoCoding();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    pixelPos.setLocation(x + 0.5f, y + 0.5);
-                    targetBand.getGeoCoding().getGeoPos(pixelPos, geoPos);
-                    final int waterMaskSample = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
-                    targetTile.setSample(x, y, waterMaskSample);
+                    int waterMaskSample = 0;
+                    for (int sx = 0; sx < subSamplingFactor; sx++) {
+                        for (int sy = 0; sy < subSamplingFactor; sy++) {
+                            pixelPos.setLocation(x + sx * (1.0/subSamplingFactor), y + sy * (1.0/subSamplingFactor));
+                            geoCoding.getGeoPos(pixelPos, geoPos);
+                            final int sample = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
+                            if (sample != WatermaskClassifier.INVALID_VALUE) {
+                                waterMaskSample += sample;
+                            }
+                        }
+                    }
+                   targetTile.setSample(x, y, 100 * waterMaskSample / (subSamplingFactor * subSamplingFactor));
                 }
             }
         } catch (Exception e) {
@@ -119,12 +130,9 @@ public class WatermaskOp extends Operator {
     private void initTargetProduct() {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        final Band band = targetProduct.addBand("land_water_flag", ProductData.TYPE_UINT8);
-        final FlagCoding flagCoding = new FlagCoding("land_water");
-        targetProduct.getFlagCodingGroup().add(flagCoding);
-        flagCoding.addFlag("Water", WatermaskClassifier.WATER_VALUE, "Pixel is water pixel");
-        band.setSampleCoding(flagCoding);
+        final Band band = targetProduct.addBand("land_water_fraction", ProductData.TYPE_FLOAT32);
         band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
+        band.setNoDataValueUsed(true);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
         if (band.getGeoCoding() == null) {
             throw new OperatorException("Geo-reference information could not be copied.");

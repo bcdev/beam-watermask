@@ -33,7 +33,8 @@ import java.util.Properties;
 public class WatermaskClassifier {
 
     public static final int WATER_VALUE = 1;
-    public static final int INVALID_VALUE = 2;
+    public static final int INVALID_VALUE = -1;
+    public static final int LAND_VALUE = 0;
     public static final int RESOLUTION_50 = 50;
     public static final int RESOLUTION_150 = 150;
 
