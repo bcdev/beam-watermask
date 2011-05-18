@@ -6,7 +6,6 @@ import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.watermask.operator.WatermaskClassifier;
-import sun.awt.windows.WCustomCursor;
 
 import java.awt.Rectangle;
 import java.awt.image.Raster;

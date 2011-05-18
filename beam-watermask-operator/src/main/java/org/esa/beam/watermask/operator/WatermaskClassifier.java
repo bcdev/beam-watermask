@@ -33,7 +33,7 @@ import java.util.Properties;
 public class WatermaskClassifier {
 
     public static final int WATER_VALUE = 1;
-    public static final int INVALID_VALUE = -1;
+    public static final int INVALID_VALUE = 127;
     public static final int LAND_VALUE = 0;
     public static final int RESOLUTION_50 = 50;
     public static final int RESOLUTION_150 = 150;
@@ -111,6 +111,32 @@ public class WatermaskClassifier {
         final int y = (int) Math.floor((90.0 - lat) / pixelSize);
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         return tile.getSample(x, y, 0);
+    }
+
+    /**
+     * Returns the fraction of water for the given region, considering a subsampling factor.
+      * @param geoRectangle The region the water fraction is computed for.
+     * @param subsamplingFactor The factor between the high resolution water mask and the - typically lower resolution -
+     * source image.
+     * @return The fraction of water in the given geographic rectangle, in the range [0..100]
+     * @throws IOException If some internal IO-error occurs.
+     */
+    public float getWaterMaskFraction(GeoRectangle geoRectangle, int subsamplingFactor) throws IOException {
+        int averageValue = 0;
+        float latStep = (geoRectangle.endLat - geoRectangle.startLat) / subsamplingFactor;
+        float lonStep = (geoRectangle.endLon - geoRectangle.startLon) / subsamplingFactor;
+        for (int sx = 0; sx < subsamplingFactor; sx++) {
+            for (int sy = 0; sy < subsamplingFactor; sy++) {
+                final float lat = geoRectangle.startLat + sy * latStep;
+                final float lon = geoRectangle.startLon + sx * lonStep;
+                final int waterMaskSample = getWaterMaskSample(lat, lon);
+                if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
+                    averageValue += waterMaskSample;
+                }
+            }
+        }
+
+        return 100 * averageValue / (subsamplingFactor * subsamplingFactor);
     }
 
     /**
