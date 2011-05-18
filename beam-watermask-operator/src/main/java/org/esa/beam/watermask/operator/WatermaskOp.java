@@ -89,23 +89,34 @@ public class WatermaskOp extends Operator {
             final GeoCoding geoCoding = targetBand.getGeoCoding();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    int waterMaskSample = 0;
-                    for (int sx = 0; sx < subSamplingFactor; sx++) {
-                        for (int sy = 0; sy < subSamplingFactor; sy++) {
-                            pixelPos.setLocation(x + sx * (1.0/subSamplingFactor), y + sy * (1.0/subSamplingFactor));
-                            geoCoding.getGeoPos(pixelPos, geoPos);
-                            final int sample = classifier.getWaterMaskSample(geoPos.lat, geoPos.lon);
-                            if (sample != WatermaskClassifier.INVALID_VALUE) {
-                                waterMaskSample += sample;
-                            }
-                        }
-                    }
-                   targetTile.setSample(x, y, 100 * waterMaskSample / (subSamplingFactor * subSamplingFactor));
+                    pixelPos.x = x;
+                    pixelPos.y = y;
+                    final GeoRectangle geoRectangle = computeGeoRectangle(pixelPos, geoPos, geoCoding);
+                    targetTile.setSample(x, y, classifier.getWaterMaskFraction(geoRectangle, subSamplingFactor));
                 }
             }
         } catch (Exception e) {
             throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.", e);
         }
+    }
+
+    private GeoRectangle computeGeoRectangle(PixelPos pixelPos, GeoPos geoPos, GeoCoding geoCoding) {
+        geoCoding.getGeoPos(pixelPos, geoPos);
+        final float startLat = geoPos.lat;
+        final float startLon = geoPos.lon;
+        pixelPos.x += 1;
+        pixelPos.y += 1;
+        geoCoding.getGeoPos(pixelPos, geoPos);
+        final float endLat;
+        final float endLon;
+        if (geoPos.isValid()) {
+            endLat = geoPos.lat;
+            endLon = geoPos.lon;
+        } else {
+            endLat = startLat;
+            endLon = startLon;
+        }
+        return new GeoRectangle(startLat, endLat, startLon, endLon);
     }
 
     private void validateParameter() {
