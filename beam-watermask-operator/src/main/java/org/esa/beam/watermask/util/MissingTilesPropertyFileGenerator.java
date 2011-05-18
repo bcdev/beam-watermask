@@ -6,6 +6,7 @@ import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.watermask.operator.WatermaskClassifier;
+import sun.awt.windows.WCustomCursor;
 
 import java.awt.Rectangle;
 import java.awt.image.Raster;
@@ -28,11 +29,6 @@ import java.util.Properties;
  */
 class MissingTilesPropertyFileGenerator {
 
-    private static final String INVALID_VALUE = "2";
-    private static final int WATER_VALUE = 1;
-    private static final int LAND_VALUE = 0;
-
-
     private MissingTilesPropertyFileGenerator() {
     }
 
@@ -46,7 +42,7 @@ class MissingTilesPropertyFileGenerator {
                 final String tileFileName = getTileFileName(x, y);
                 final String propertyKey = tileFileName.substring(0, tileFileName.indexOf('.'));
                 if (y >= 60 || y <= -60) {
-                    properties.setProperty(propertyKey, INVALID_VALUE);
+                    properties.setProperty(propertyKey, WatermaskClassifier.INVALID_VALUE + "");
                 } else if (!new File(directory, tileFileName).exists()) {
                     System.out.printf("Not existing: %s%n", tileFileName);
                     final int landWater = getLandWaterValue(land_water, x, y);
@@ -72,7 +68,7 @@ class MissingTilesPropertyFileGenerator {
         final Raster raster = landWaterBand.getSourceImage().getData(
                 new Rectangle((int) pixelPos.getX(), (int) pixelPos.getY(), 1, 1));
         final int sample = raster.getSample((int) pixelPos.getX(), (int) pixelPos.getY(), 0);
-        return sample == 17 ? WATER_VALUE : LAND_VALUE;
+        return sample == 17 ? WatermaskClassifier.WATER_VALUE : WatermaskClassifier.LAND_VALUE;
     }
 
     static String getTileFileName(double lon, double lat) {
