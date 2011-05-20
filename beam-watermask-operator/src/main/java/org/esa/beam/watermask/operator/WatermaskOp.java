@@ -19,7 +19,6 @@ package org.esa.beam.watermask.operator;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.GeoCoding;
-import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.ProductData;
@@ -83,7 +82,6 @@ public class WatermaskOp extends Operator {
     @Override
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
         final Rectangle rectangle = targetTile.getRectangle();
-        GeoPos geoPos = new GeoPos();
         try {
             final PixelPos pixelPos = new PixelPos();
             final GeoCoding geoCoding = targetBand.getGeoCoding();
@@ -91,32 +89,13 @@ public class WatermaskOp extends Operator {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     pixelPos.x = x;
                     pixelPos.y = y;
-                    final GeoRectangle geoRectangle = computeGeoRectangle(pixelPos, geoPos, geoCoding);
-                    targetTile.setSample(x, y, classifier.getWaterMaskFraction(geoRectangle, subSamplingFactor));
+                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactor);
+                    targetTile.setSample(x, y, waterFraction);
                 }
             }
         } catch (Exception e) {
             throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.", e);
         }
-    }
-
-    private GeoRectangle computeGeoRectangle(PixelPos pixelPos, GeoPos geoPos, GeoCoding geoCoding) {
-        geoCoding.getGeoPos(pixelPos, geoPos);
-        final float startLat = geoPos.lat;
-        final float startLon = geoPos.lon;
-        pixelPos.x += 1;
-        pixelPos.y += 1;
-        geoCoding.getGeoPos(pixelPos, geoPos);
-        final float endLat;
-        final float endLon;
-        if (geoPos.isValid()) {
-            endLat = geoPos.lat;
-            endLon = geoPos.lon;
-        } else {
-            endLat = startLat;
-            endLon = startLon;
-        }
-        return new GeoRectangle(startLat, endLat, startLon, endLon);
     }
 
     private void validateParameter() {

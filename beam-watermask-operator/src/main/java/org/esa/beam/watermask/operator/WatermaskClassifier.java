@@ -17,6 +17,9 @@
 package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.ProgressMonitor;
+import org.esa.beam.framework.datamodel.GeoCoding;
+import org.esa.beam.framework.datamodel.GeoPos;
+import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
 
@@ -115,28 +118,43 @@ public class WatermaskClassifier {
 
     /**
      * Returns the fraction of water for the given region, considering a subsampling factor.
-      * @param geoRectangle The region the water fraction is computed for.
-     * @param subsamplingFactor The factor between the high resolution water mask and the - typically lower resolution -
-     * source image.
-     * @return The fraction of water in the given geographic rectangle, in the range [0..100]
+     *
+     * @param geoCoding         The Geocoding of the product the watermask fraction shall be computed for.
+     * @param pixelPos          The pixel position the watermask fraction shall be computed for.
+     * @param subsamplingFactor The factor between the high resolution water mask and the - lower resolution -
+     *                          source image. Only values in [1..M] are sensible,
+     *                          with M = (source image resolution in m/pixel) / (50 m/pixel)
+     *
+     * @return The fraction of water in the given geographic rectangle, in the range [0..100].
+     *
      * @throws IOException If some internal IO-error occurs.
      */
-    public float getWaterMaskFraction(GeoRectangle geoRectangle, int subsamplingFactor) throws IOException {
-        int averageValue = 0;
-        float latStep = (geoRectangle.endLat - geoRectangle.startLat) / subsamplingFactor;
-        float lonStep = (geoRectangle.endLon - geoRectangle.startLon) / subsamplingFactor;
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactor) throws IOException {
+        float valueSum = 0;
+        double step = 1.0 / subsamplingFactor;
+        final GeoPos geoPos = new GeoPos();
+        final PixelPos currentPos = new PixelPos();
+        int invalidCount = 0;
         for (int sx = 0; sx < subsamplingFactor; sx++) {
+            currentPos.x = (float) (pixelPos.x + sx * step);
             for (int sy = 0; sy < subsamplingFactor; sy++) {
-                final float lat = geoRectangle.startLat + sy * latStep;
-                final float lon = geoRectangle.startLon + sx * lonStep;
-                final int waterMaskSample = getWaterMaskSample(lat, lon);
+                currentPos.y = (float) (pixelPos.y + sy * step);
+                geoCoding.getGeoPos(currentPos, geoPos);
+                final int waterMaskSample = getWaterMaskSample(geoPos.lat, geoPos.lon);
                 if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
-                    averageValue += waterMaskSample;
+                    valueSum += waterMaskSample;
+                } else {
+                    invalidCount++;
                 }
             }
         }
 
-        return 100 * averageValue / (subsamplingFactor * subsamplingFactor);
+        final boolean allValuesInvalid = invalidCount == subsamplingFactor * subsamplingFactor;
+        if (allValuesInvalid) {
+            return WatermaskClassifier.INVALID_VALUE;
+        } else {
+            return (byte) (100 * valueSum / (subsamplingFactor * subsamplingFactor));
+        }
     }
 
     /**
