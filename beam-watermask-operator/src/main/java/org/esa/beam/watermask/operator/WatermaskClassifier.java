@@ -23,10 +23,12 @@ import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
 
+import javax.media.jai.SourcelessOpImage;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.Properties;
 
 /**
@@ -41,7 +43,8 @@ public class WatermaskClassifier {
     public static final int RESOLUTION_50 = 50;
     public static final int RESOLUTION_150 = 150;
 
-    private final WatermaskOpImage image;
+    private final SRTMOpImage belowSixtyImage;
+    private final GCOpImage aboveSixtyImage;
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -61,10 +64,15 @@ public class WatermaskClassifier {
     public WatermaskClassifier(int resolution) throws IOException {
         if (resolution != RESOLUTION_50 && resolution != RESOLUTION_150) {
             throw new IllegalArgumentException(
-                    "Resolution needs to be " + RESOLUTION_50 + " or " + RESOLUTION_150 + ".");
+                    MessageFormat.format("Resolution needs to be {0} or {1}.", RESOLUTION_50, RESOLUTION_150));
         }
 
         final File auxdataDir = installAuxdata();
+        belowSixtyImage = createBelowSixtyImage(resolution, auxdataDir);
+        aboveSixtyImage = createAboveSixtyImage(auxdataDir);
+    }
+
+    private SRTMOpImage createBelowSixtyImage(int resolution, File auxdataDir) throws IOException {
         int tileSize = WatermaskUtils.computeSideLength(resolution);
 
         int width = tileSize * 360;
@@ -77,8 +85,23 @@ public class WatermaskClassifier {
         final URL imageProperties = getClass().getResource("image.properties");
         properties.load(imageProperties.openStream());
 
-        File zipFilePath = new File(auxdataDir, resolution + "m.zip");
-        image = WatermaskOpImage.create(properties, zipFilePath);
+        File zipFile = new File(auxdataDir, resolution + "m.zip");
+        return SRTMOpImage.create(properties, zipFile);
+    }
+
+    private GCOpImage createAboveSixtyImage(File auxdataDir) throws IOException {
+        int width = 129600;
+        int height = 10802;
+        final Properties properties = new Properties();
+        properties.setProperty("width", String.valueOf(width));
+        properties.setProperty("height", String.valueOf(height));
+        properties.setProperty("tileWidth", String.valueOf(576));
+        properties.setProperty("tileHeight", String.valueOf(491));
+        final URL imageProperties = getClass().getResource("image.properties");
+        properties.load(imageProperties.openStream());
+
+        File zipFile = new File(auxdataDir, "GC_water_mask.zip");
+        return GCOpImage.create(properties, zipFile);
     }
 
     private File installAuxdata() throws IOException {
@@ -105,13 +128,23 @@ public class WatermaskClassifier {
      * @throws java.io.IOException If some IO-error occurs reading the source file.
      */
     public int getWaterMaskSample(float lat, float lon) throws IOException {
-        final double pixelSize = 360.0 / image.getWidth();
         double tempLon = lon + 180.0;
         if (tempLon >= 360) {
             tempLon %= 360;
         }
-        final int x = (int) Math.floor(tempLon / pixelSize);
-        final int y = (int) Math.floor((90.0 - lat) / pixelSize);
+
+        if (lat <= 60.0) {
+            return getSample(lat, tempLon, 360.0, 180.0, belowSixtyImage);
+        } else {
+            return getSample(lat, tempLon, 360.0, 30.0, aboveSixtyImage);
+        }
+    }
+
+    private int getSample(double lat, double lon, double lonDiff, double latDiff, SourcelessOpImage image) {
+        final double pixelSizeX = lonDiff / image.getWidth();
+        final double pixelSizeY = latDiff / image.getHeight();
+        final int x = (int) Math.floor(lon / pixelSizeX);
+        final int y = (int) Math.floor((90.0 - lat) / pixelSizeY);
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         return tile.getSample(x, y, 0);
     }

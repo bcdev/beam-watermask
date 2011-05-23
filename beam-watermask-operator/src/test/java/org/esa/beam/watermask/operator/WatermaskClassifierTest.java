@@ -44,6 +44,21 @@ public class WatermaskClassifierTest {
     }
 
     @Test
+    public void testGetWatermaskSampleAboveSixty() throws Exception {
+        assertEquals(WatermaskClassifier.WATER_VALUE, classifier.getWaterMaskSample(70.860277f, 29.205115f));
+        assertEquals(WatermaskClassifier.LAND_VALUE, classifier.getWaterMaskSample(70.853971f, 29.210610f));
+
+        assertEquals(WatermaskClassifier.WATER_VALUE, classifier.getWaterMaskSample(72.791664f, 105.28333f));
+        assertEquals(WatermaskClassifier.LAND_VALUE,  classifier.getWaterMaskSample(72.794586f, 105.27786f));
+
+        assertEquals(WatermaskClassifier.WATER_VALUE, classifier.getWaterMaskSample(80.19444f, 25.963888f));
+        assertEquals(WatermaskClassifier.LAND_VALUE,  classifier.getWaterMaskSample(80.14856f, 25.95601f));
+
+        assertEquals(WatermaskClassifier.WATER_VALUE, classifier.getWaterMaskSample(80.18703f, 26.04707f));
+        assertEquals(WatermaskClassifier.LAND_VALUE,  classifier.getWaterMaskSample(80.176834f, 26.054949f));
+    }
+
+    @Test
     public void testIsWater() throws Exception {
 
         assertFalse(classifier.isWater(30.30539f, 111.55285f));
