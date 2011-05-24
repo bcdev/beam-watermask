@@ -61,10 +61,15 @@ public class WatermaskOp extends Operator {
                label = "Resolution", defaultValue = "50", valueSet = {"50", "150"})
     private int resolution;
 
-    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask. " +
-                             "A value of '1' means no subsampling at all.",
-               label = "Subsampling factor", defaultValue = "1", notNull = true)
-    private int subSamplingFactor;
+    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask in " +
+                             "x direction. A value of '1' means no subsampling at all.",
+               label = "Subsampling factor x", defaultValue = "1", notNull = true)
+    private int subSamplingFactorX;
+
+    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask in" +
+                             "y direction. A value of '1' means no subsampling at all.",
+               label = "Subsampling factor y", defaultValue = "1", notNull = true)
+    private int subSamplingFactorY;
 
     @TargetProduct
     private Product targetProduct;
@@ -92,7 +97,7 @@ public class WatermaskOp extends Operator {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     pixelPos.x = x + 0.5f;
                     pixelPos.y = y + 0.5f;
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactor);
+                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactorX, subSamplingFactorY);
                     targetTile.setSample(x, y, waterFraction);
                 }
             }
@@ -107,8 +112,8 @@ public class WatermaskOp extends Operator {
                                                       WatermaskClassifier.RESOLUTION_50,
                                                       WatermaskClassifier.RESOLUTION_150));
         }
-        if(subSamplingFactor < 1) {
-            String message = MessageFormat.format("Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactor);
+        if(subSamplingFactorX < 1) {
+            String message = MessageFormat.format("Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactorX);
             throw new OperatorException(message);
         }
     }
