@@ -27,6 +27,7 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
@@ -37,11 +38,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
+ * OpImage to read from GlobCover-based water mask images.
+ *
  * @author Thomas Storm
  */
 public class GCOpImage extends SourcelessOpImage {
 
     private final ZipFile zipFile;
+
+    static GCOpImage create(Properties properties, File zipFile) throws IOException {
+        final ImageHeader imageHeader = ImageHeader.load(properties, null);
+        return new GCOpImage(imageHeader, zipFile);
+    }
 
     private GCOpImage(ImageHeader imageHeader, File zipFile) throws IOException {
         super(imageHeader.getImageLayout(),
@@ -58,11 +66,6 @@ public class GCOpImage extends SourcelessOpImage {
         setTileCache(JAI.createTileCache(50L * 1024 * 1024));
     }
 
-    public static GCOpImage create(Properties properties, File zipFile) throws IOException {
-        final ImageHeader imageHeader = ImageHeader.load(properties, null);
-        return new GCOpImage(imageHeader, zipFile);
-    }
-
     @Override
     public Raster computeTile(int tileX, int tileY) {
         Raster raster;
@@ -76,10 +79,9 @@ public class GCOpImage extends SourcelessOpImage {
     }
 
     private Raster computeRawRaster(int tileX, int tileY) throws IOException {
-        String fileName = getFileName(tileX, tileY);
-        ZipEntry zipEntry = zipFile.getEntry(fileName);
-        final Point location = new Point(tileXToX(tileX), tileYToY(tileY));
-        final WritableRaster targetRaster = createWritableRaster(new SingleBandedSampleModel(DataBuffer.TYPE_BYTE, 576, 491), location);
+        final String fileName = getFileName(tileX, tileY);
+        final WritableRaster targetRaster = createWritableRaster(tileX, tileY);
+        final ZipEntry zipEntry = zipFile.getEntry(fileName);
 
         InputStream inputStream = null;
         try {
@@ -87,10 +89,12 @@ public class GCOpImage extends SourcelessOpImage {
             BufferedImage image = ImageIO.read(inputStream);
             Raster imageData = image.getData();
             for (int x = 0; x < imageData.getWidth(); x++) {
+                int xPos = tileXToX(tileX) + x;
                 for (int y = 0; y < imageData.getHeight(); y++) {
                     byte sample = (byte) imageData.getSample(x, y, 0);
                     sample = (byte) Math.abs(sample - 1);
-                    targetRaster.setSample(tileXToX(tileX) + x, tileYToY(tileY) + y, 0, sample);
+                    int yPos = tileYToY(tileY) + y;
+                    targetRaster.setSample(xPos, yPos, 0, sample);
                 }
             }
         } finally {
@@ -101,7 +105,13 @@ public class GCOpImage extends SourcelessOpImage {
         return targetRaster;
     }
 
-    String getFileName(int tileX, int tileY) {
+    private WritableRaster createWritableRaster(int tileX, int tileY) {
+        final Point location = new Point(tileXToX(tileX), tileYToY(tileY));
+        final SampleModel sampleModel = new SingleBandedSampleModel(DataBuffer.TYPE_BYTE, WatermaskClassifier.GC_TILE_WIDTH, WatermaskClassifier.GC_TILE_HEIGHT);
+        return createWritableRaster(sampleModel, location);
+    }
+
+    private String getFileName(int tileX, int tileY) {
         return String.format("%d-%d.png", tileX, tileY);
     }
 }

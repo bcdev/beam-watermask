@@ -31,7 +31,7 @@ import static org.junit.Assert.*;
 public class LandMaskRasterCreatorTest {
 
     @Test
-    public void testFile() throws Exception {
+    public void testMixedFile() throws Exception {
         final BufferedImage image = ImageIO.read(getClass().getResource("156-12.png"));
         int sample = image.getData().getSample(220, 40, 0);
         assertEquals(0, sample);
