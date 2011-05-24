@@ -34,6 +34,7 @@ import org.esa.beam.util.ProductUtils;
 
 import java.awt.Rectangle;
 import java.io.IOException;
+import java.text.MessageFormat;
 
 /**
  * GPF-Operator responsible for creating a product, which contains a single band: a land/water-mask based on
@@ -48,7 +49,8 @@ import java.io.IOException;
                   authors = "Thomas Storm",
                   copyright = "(c) 2011 by Brockmann Consult",
                   description = "Operator creating a target product with a single band containing a land/water-mask," +
-                                " which is based on SRTM-shapefiles and therefore very accurate.")
+                                " which is based on SRTM-shapefiles (below 60° north) and the GlobCover world map " +
+                                "(above 60° north) and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
     @SourceProduct(alias = "source", description = "The Product the land/water-mask shall be computed for.",
@@ -59,8 +61,9 @@ public class WatermaskOp extends Operator {
                label = "Resolution", defaultValue = "50", valueSet = {"50", "150"})
     private int resolution;
 
-    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask.",
-               label = "Subsampling factor", defaultValue = "10", notNull = true)
+    @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask. " +
+                             "A value of '1' means no subsampling at all.",
+               label = "Subsampling factor", defaultValue = "1", notNull = true)
     private int subSamplingFactor;
 
     @TargetProduct
@@ -87,8 +90,8 @@ public class WatermaskOp extends Operator {
             final GeoCoding geoCoding = targetBand.getGeoCoding();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    pixelPos.x = x;
-                    pixelPos.y = y;
+                    pixelPos.x = x + 0.5f;
+                    pixelPos.y = y + 0.5f;
                     final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactor);
                     targetTile.setSample(x, y, waterFraction);
                 }
@@ -103,6 +106,10 @@ public class WatermaskOp extends Operator {
             throw new OperatorException(String.format("Resolution needs to be either %d or %d.",
                                                       WatermaskClassifier.RESOLUTION_50,
                                                       WatermaskClassifier.RESOLUTION_150));
+        }
+        if(subSamplingFactor < 1) {
+            String message = MessageFormat.format("Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactor);
+            throw new OperatorException(message);
         }
     }
 
@@ -129,6 +136,7 @@ public class WatermaskOp extends Operator {
         }
     }
 
+    @SuppressWarnings({"UnusedDeclaration"})
     public static class Spi extends OperatorSpi {
 
         public Spi() {

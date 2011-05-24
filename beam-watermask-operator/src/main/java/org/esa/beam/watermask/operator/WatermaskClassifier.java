@@ -23,7 +23,7 @@ import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
 
-import javax.media.jai.SourcelessOpImage;
+import javax.media.jai.OpImage;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +42,10 @@ public class WatermaskClassifier {
     public static final int LAND_VALUE = 0;
     public static final int RESOLUTION_50 = 50;
     public static final int RESOLUTION_150 = 150;
+    static final int GC_TILE_WIDTH = 576;
+    static final int GC_TILE_HEIGHT = 491;
+    static final int GC_IMAGE_WIDTH = 129600;
+    static final int GC_IMAGE_HEIGHT = 10800;
 
     private final SRTMOpImage belowSixtyImage;
     private final GCOpImage aboveSixtyImage;
@@ -90,13 +94,13 @@ public class WatermaskClassifier {
     }
 
     private GCOpImage createAboveSixtyImage(File auxdataDir) throws IOException {
-        int width = 129600;
-        int height = 10802;
+        int width = GC_IMAGE_WIDTH;
+        int height = GC_IMAGE_HEIGHT;
         final Properties properties = new Properties();
         properties.setProperty("width", String.valueOf(width));
         properties.setProperty("height", String.valueOf(height));
-        properties.setProperty("tileWidth", String.valueOf(576));
-        properties.setProperty("tileHeight", String.valueOf(491));
+        properties.setProperty("tileWidth", String.valueOf(GC_TILE_WIDTH));
+        properties.setProperty("tileHeight", String.valueOf(GC_TILE_HEIGHT));
         final URL imageProperties = getClass().getResource("image.properties");
         properties.load(imageProperties.openStream());
 
@@ -133,18 +137,18 @@ public class WatermaskClassifier {
             tempLon %= 360;
         }
 
-        if (lat <= 60.0) {
-            return getSample(lat, tempLon, 360.0, 180.0, belowSixtyImage);
+        if (lat < 60.0f) {
+            return getSample(lat, tempLon, 180.0, 360.0, belowSixtyImage);
         } else {
-            return getSample(lat, tempLon, 360.0, 30.0, aboveSixtyImage);
+            return getSample(lat, tempLon, 30.0, 360.0, aboveSixtyImage);
         }
     }
 
-    private int getSample(double lat, double lon, double lonDiff, double latDiff, SourcelessOpImage image) {
+    private int getSample(double lat, double lon, double latDiff, double lonDiff, OpImage image) {
         final double pixelSizeX = lonDiff / image.getWidth();
-        final double pixelSizeY = latDiff / image.getHeight();
-        final int x = (int) Math.floor(lon / pixelSizeX);
-        final int y = (int) Math.floor((90.0 - lat) / pixelSizeY);
+        final double pixelSizeY = latDiff / (image.getHeight());
+        final int x = (int) Math.round(lon / pixelSizeX);
+        final int y = (int) Math.round((90.0 - lat) / pixelSizeY);
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         return tile.getSample(x, y, 0);
     }
@@ -152,7 +156,7 @@ public class WatermaskClassifier {
     /**
      * Returns the fraction of water for the given region, considering a subsampling factor.
      *
-     * @param geoCoding         The Geocoding of the product the watermask fraction shall be computed for.
+     * @param geoCoding         The geo coding of the product the watermask fraction shall be computed for.
      * @param pixelPos          The pixel position the watermask fraction shall be computed for.
      * @param subsamplingFactor The factor between the high resolution water mask and the - lower resolution -
      *                          source image. Only values in [1..M] are sensible,
@@ -173,7 +177,7 @@ public class WatermaskClassifier {
             for (int sy = 0; sy < subsamplingFactor; sy++) {
                 currentPos.y = (float) (pixelPos.y + sy * step);
                 geoCoding.getGeoPos(currentPos, geoPos);
-                final int waterMaskSample = getWaterMaskSample(geoPos.lat, geoPos.lon);
+                int waterMaskSample = getWaterMaskSample(geoPos);
                 if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
                     valueSum += waterMaskSample;
                 } else {
@@ -182,12 +186,26 @@ public class WatermaskClassifier {
             }
         }
 
+        return computeAverage(subsamplingFactor, valueSum, invalidCount);
+    }
+
+    private byte computeAverage(int subsamplingFactor, float valueSum, int invalidCount) {
         final boolean allValuesInvalid = invalidCount == subsamplingFactor * subsamplingFactor;
         if (allValuesInvalid) {
             return WatermaskClassifier.INVALID_VALUE;
         } else {
             return (byte) (100 * valueSum / (subsamplingFactor * subsamplingFactor));
         }
+    }
+
+    private int getWaterMaskSample(GeoPos geoPos) throws IOException {
+        final int waterMaskSample;
+        if(geoPos.isValid()) {
+            waterMaskSample = getWaterMaskSample(geoPos.lat, geoPos.lon);
+        } else {
+            waterMaskSample = WatermaskClassifier.INVALID_VALUE;
+        }
+        return waterMaskSample;
     }
 
     /**
