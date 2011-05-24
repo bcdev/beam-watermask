@@ -156,26 +156,30 @@ public class WatermaskClassifier {
     /**
      * Returns the fraction of water for the given region, considering a subsampling factor.
      *
-     * @param geoCoding         The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPos          The pixel position the watermask fraction shall be computed for.
-     * @param subsamplingFactor The factor between the high resolution water mask and the - lower resolution -
-     *                          source image. Only values in [1..M] are sensible,
-     *                          with M = (source image resolution in m/pixel) / (50 m/pixel)
+     * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
+     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
+     * @param subsamplingFactorX The factor between the high resolution water mask and the - lower resolution -
+     *                           source image in x direction. Only values in [1..M] are sensible,
+     *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
+     * @param subsamplingFactorY The factor between the high resolution water mask and the - lower resolution -
+     *                           source image in y direction. Only values in [1..M] are sensible,
+     *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
      *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
      *
      * @throws IOException If some internal IO-error occurs.
      */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactor) throws IOException {
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX, int subsamplingFactorY) throws IOException {
         float valueSum = 0;
-        double step = 1.0 / subsamplingFactor;
+        double xStep = 1.0 / subsamplingFactorX;
+        double yStep = 1.0 / subsamplingFactorY;
         final GeoPos geoPos = new GeoPos();
         final PixelPos currentPos = new PixelPos();
         int invalidCount = 0;
-        for (int sx = 0; sx < subsamplingFactor; sx++) {
-            currentPos.x = (float) (pixelPos.x + sx * step);
-            for (int sy = 0; sy < subsamplingFactor; sy++) {
-                currentPos.y = (float) (pixelPos.y + sy * step);
+        for (int sx = 0; sx < subsamplingFactorX; sx++) {
+            currentPos.x = (float) (pixelPos.x + sx * xStep);
+            for (int sy = 0; sy < subsamplingFactorY; sy++) {
+                currentPos.y = (float) (pixelPos.y + sy * yStep);
                 geoCoding.getGeoPos(currentPos, geoPos);
                 int waterMaskSample = getWaterMaskSample(geoPos);
                 if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
@@ -186,21 +190,21 @@ public class WatermaskClassifier {
             }
         }
 
-        return computeAverage(subsamplingFactor, valueSum, invalidCount);
+        return computeAverage(subsamplingFactorX, subsamplingFactorY, valueSum, invalidCount);
     }
 
-    private byte computeAverage(int subsamplingFactor, float valueSum, int invalidCount) {
-        final boolean allValuesInvalid = invalidCount == subsamplingFactor * subsamplingFactor;
+    private byte computeAverage(int subsamplingFactorX, int subsamplingFactorY, float valueSum, int invalidCount) {
+        final boolean allValuesInvalid = invalidCount == subsamplingFactorX * subsamplingFactorY;
         if (allValuesInvalid) {
             return WatermaskClassifier.INVALID_VALUE;
         } else {
-            return (byte) (100 * valueSum / (subsamplingFactor * subsamplingFactor));
+            return (byte) (100 * valueSum / (subsamplingFactorX * subsamplingFactorY));
         }
     }
 
     private int getWaterMaskSample(GeoPos geoPos) throws IOException {
         final int waterMaskSample;
-        if(geoPos.isValid()) {
+        if (geoPos.isValid()) {
             waterMaskSample = getWaterMaskSample(geoPos.lat, geoPos.lon);
         } else {
             waterMaskSample = WatermaskClassifier.INVALID_VALUE;
