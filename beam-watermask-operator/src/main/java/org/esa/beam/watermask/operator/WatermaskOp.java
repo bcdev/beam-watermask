@@ -92,11 +92,11 @@ public class WatermaskOp extends Operator {
         final Rectangle rectangle = targetTile.getRectangle();
         try {
             final PixelPos pixelPos = new PixelPos();
-            final GeoCoding geoCoding = targetBand.getGeoCoding();
+            final GeoCoding geoCoding = sourceProduct.getGeoCoding();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
-                    pixelPos.x = x + 0.5f;
-                    pixelPos.y = y + 0.5f;
+                    pixelPos.x = x;
+                    pixelPos.y = y;
                     final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactorX, subSamplingFactorY);
                     targetTile.setSample(x, y, waterFraction);
                 }
@@ -136,9 +136,6 @@ public class WatermaskOp extends Operator {
         band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
         band.setNoDataValueUsed(true);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
-        if (band.getGeoCoding() == null) {
-            throw new OperatorException("Geo-reference information could not be copied.");
-        }
     }
 
     @SuppressWarnings({"UnusedDeclaration"})
