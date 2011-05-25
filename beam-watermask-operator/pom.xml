@@ -6,12 +6,12 @@
     <parent>
         <groupId>org.esa.beam</groupId>
         <artifactId>beam-watermask</artifactId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.1</version>
     </parent>
 
     <groupId>org.esa.beam</groupId>
     <artifactId>beam-watermask-operator</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.1</version>
 
     <name>BEAM Watermask Operator</name>
     <description>Provides an API as well as an operator for creating an accurate, shapefile-based land-water mask.
@@ -44,7 +44,7 @@
                         </goals>
                         <configuration>
                             <resourceBundles>
-                                <resourceBundle>${project.groupId}:beam-watermask-auxdata:1.1-SNAPSHOT</resourceBundle>
+                                <resourceBundle>${project.groupId}:beam-watermask-auxdata:1.1</resourceBundle>
                             </resourceBundles>
                             <outputDirectory>${project.build.outputDirectory}</outputDirectory>
                         </configuration>
