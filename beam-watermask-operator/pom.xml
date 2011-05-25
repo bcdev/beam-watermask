@@ -44,7 +44,7 @@
                         </goals>
                         <configuration>
                             <resourceBundles>
-                                <resourceBundle>${project.groupId}:beam-watermask-auxdata:1.0</resourceBundle>
+                                <resourceBundle>${project.groupId}:beam-watermask-auxdata:1.1-SNAPSHOT</resourceBundle>
                             </resourceBundles>
                             <outputDirectory>${project.build.outputDirectory}</outputDirectory>
                         </configuration>
