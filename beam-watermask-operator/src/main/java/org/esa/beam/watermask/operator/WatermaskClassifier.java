@@ -128,10 +128,8 @@ public class WatermaskClassifier {
      *
      * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
      *         about the position.
-     *
-     * @throws java.io.IOException If some IO-error occurs reading the source file.
      */
-    public int getWaterMaskSample(float lat, float lon) throws IOException {
+    public int getWaterMaskSample(float lat, float lon) {
         double tempLon = lon + 180.0;
         if (tempLon >= 360) {
             tempLon %= 360;
@@ -166,10 +164,8 @@ public class WatermaskClassifier {
      *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
      *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
-     *
-     * @throws IOException If some internal IO-error occurs.
      */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX, int subsamplingFactorY) throws IOException {
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX, int subsamplingFactorY) {
         float valueSum = 0;
         double xStep = 1.0 / subsamplingFactorX;
         double yStep = 1.0 / subsamplingFactorY;
@@ -202,7 +198,7 @@ public class WatermaskClassifier {
         }
     }
 
-    private int getWaterMaskSample(GeoPos geoPos) throws IOException {
+    private int getWaterMaskSample(GeoPos geoPos) {
         final int waterMaskSample;
         if (geoPos.isValid()) {
             waterMaskSample = getWaterMaskSample(geoPos.lat, geoPos.lon);
