@@ -24,6 +24,21 @@
             <artifactId>beam-gpf</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.esa.beam</groupId>
+            <artifactId>beam-modis-reader</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.esa.beam</groupId>
+            <artifactId>beam-netcdf</artifactId>
+            <version>1.0.101-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ncsa.hdf</groupId>
+            <artifactId>lib-hdf</artifactId>
+            <version>2.6.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.geotools</groupId>
             <artifactId>gt-render</artifactId>
         </dependency>
