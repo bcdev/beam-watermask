@@ -139,6 +139,10 @@ public class WatermaskClassifier {
             return INVALID_VALUE;
         }
 
+        if(lat < -60.0f) {
+            return WATER_VALUE;
+        }
+
         if (lat < 60.0f) {
             return getSample(lat, tempLon, 180.0, 360.0, belowSixtyImage);
         } else {
