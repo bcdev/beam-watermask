@@ -16,42 +16,34 @@
 
 package org.esa.beam.watermask.operator;
 
-import org.esa.beam.jai.ImageHeader;
-import org.esa.beam.util.ImageUtils;
-import org.esa.beam.util.jai.SingleBandedSampleModel;
+import org.esa.beam.jai.*;
+import org.esa.beam.util.*;
+import org.esa.beam.util.jai.*;
 
-import javax.imageio.ImageIO;
-import javax.media.jai.JAI;
-import javax.media.jai.SourcelessOpImage;
-import java.awt.Point;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.awt.image.Raster;
-import java.awt.image.SampleModel;
-import java.awt.image.WritableRaster;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.text.MessageFormat;
-import java.util.Properties;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import javax.imageio.*;
+import javax.media.jai.*;
+import java.awt.*;
+import java.awt.image.*;
+import java.io.*;
+import java.text.*;
+import java.util.*;
+import java.util.zip.*;
 
 /**
- * OpImage to read from GlobCover-based water mask images.
+ * OpImage to read from MODIS-based water mask images for below 60° south.
  *
  * @author Thomas Storm
  */
-public class GCOpImage extends SourcelessOpImage {
+public class ModisSouthImage extends SourcelessOpImage {
 
     private final ZipFile zipFile;
 
-    static GCOpImage create(Properties properties, File zipFile) throws IOException {
+    static ModisSouthImage create(Properties properties, File zipFile) throws IOException {
         final ImageHeader imageHeader = ImageHeader.load(properties, null);
-        return new GCOpImage(imageHeader, zipFile);
+        return new ModisSouthImage(imageHeader, zipFile);
     }
 
-    private GCOpImage(ImageHeader imageHeader, File zipFile) throws IOException {
+    private ModisSouthImage(ImageHeader imageHeader, File zipFile) throws IOException {
         super(imageHeader.getImageLayout(),
               null,
               ImageUtils.createSingleBandedSampleModel(DataBuffer.TYPE_BYTE,

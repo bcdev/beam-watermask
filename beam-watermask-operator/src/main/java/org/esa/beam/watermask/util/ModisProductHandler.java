@@ -16,22 +16,14 @@
 
 package org.esa.beam.watermask.util;
 
-import org.esa.beam.framework.dataio.ProductIO;
-import org.esa.beam.framework.datamodel.GeoCoding;
-import org.esa.beam.framework.datamodel.GeoPos;
-import org.esa.beam.framework.datamodel.PixelPos;
-import org.esa.beam.framework.datamodel.Product;
-import org.esa.beam.framework.gpf.GPF;
-import org.esa.beam.framework.gpf.OperatorSpi;
-import org.esa.beam.gpf.operators.standard.reproject.ReprojectionOp;
+import org.esa.beam.framework.dataio.*;
+import org.esa.beam.framework.datamodel.*;
+import org.esa.beam.framework.gpf.*;
+import org.esa.beam.gpf.operators.standard.reproject.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.text.*;
+import java.util.*;
 
 /**
  * @author Thomas Storm
@@ -52,6 +44,55 @@ public class ModisProductHandler {
         modisProductHandler.getProducts();
         modisProductHandler.reproject();
         modisProductHandler.write();
+        modisProductHandler.printTargetLocations();
+    }
+
+    private void printTargetLocations() throws IOException {
+        final String source = "C:\\dev\\MODIS_reproj";
+
+        final String[] files = new File(source).list(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".dim");
+            }
+        });
+
+        List<String> southProducts = new ArrayList<String>();
+        List<String> northProducts = new ArrayList<String>();
+
+        for (String file : files) {
+            final Product product = ProductIO.readProduct(new File(source, file));
+            final GeoCoding geoCoding = product.getGeoCoding();
+            PixelPos sceneLL = new PixelPos(0 + 0.5f, product.getSceneRasterHeight() - 1 + 0.5f);
+            PixelPos sceneLR = new PixelPos(product.getSceneRasterWidth() - 1 + 0.5f,
+                    product.getSceneRasterHeight() - 1 + 0.5f);
+            final GeoPos gp1 = new GeoPos();
+            final GeoPos gp2 = new GeoPos();
+            geoCoding.getGeoPos(sceneLL, gp1);
+            geoCoding.getGeoPos(sceneLR, gp2);
+            if (gp1.getLat() <= -60.0f || gp2.getLat() <= -60.0f) {
+                southProducts.add(product.getFileLocation().getAbsolutePath());
+                continue;
+            }
+            PixelPos sceneUL = new PixelPos(0.5f, 0.5f);
+            PixelPos sceneUR = new PixelPos(product.getSceneRasterWidth() - 1 + 0.5f, 0.5f);
+            geoCoding.getGeoPos(sceneUL, gp1);
+            geoCoding.getGeoPos(sceneUR, gp2);
+            if (gp1.getLat() >= 60.0f || gp2.getLat() >= 60.0f) {
+                northProducts.add(product.getFileLocation().getAbsolutePath());
+            }
+        }
+
+        System.out.println("South:");
+        for (String southProduct : southProducts) {
+            System.out.println(southProduct);
+        }
+        System.out.println("North:");
+        System.out.println("\n####################\n");
+        for (String northProduct : northProducts) {
+            System.out.println(northProduct);
+        }
+
     }
 
     private void getProducts() throws IOException {
@@ -72,7 +113,7 @@ public class ModisProductHandler {
                 continue;
             }
             PixelPos sceneLR = new PixelPos(product.getSceneRasterWidth() - 1 + 0.5f,
-                                            product.getSceneRasterHeight() - 1 + 0.5f);
+                    product.getSceneRasterHeight() - 1 + 0.5f);
             geoCoding.getGeoPos(sceneLR, gp);
             if (gp.getLat() <= -60.0f) {
                 System.out.println(MessageFormat.format(
@@ -110,7 +151,7 @@ public class ModisProductHandler {
         for (Product belowSixtyProduct : products) {
             System.out.println("Reprojecting product '" + belowSixtyProduct + "'.");
             final Product reprojectedProduct = GPF.createProduct(OperatorSpi.getOperatorAlias(ReprojectionOp.class),
-                                                                 params, belowSixtyProduct);
+                    params, belowSixtyProduct);
             reprojectedProducts.add(reprojectedProduct);
         }
     }
