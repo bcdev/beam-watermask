@@ -107,7 +107,7 @@ public class PNGSourceImage extends SourcelessOpImage {
 
     private WritableRaster createWritableRaster(int tileX, int tileY) {
         final Point location = new Point(tileXToX(tileX), tileYToY(tileY));
-        final SampleModel sampleModel = new SingleBandedSampleModel(DataBuffer.TYPE_BYTE, WatermaskClassifier.GC_TILE_WIDTH, WatermaskClassifier.GC_TILE_HEIGHT);
+        final SampleModel sampleModel = new SingleBandedSampleModel(DataBuffer.TYPE_BYTE, getTileWidth(), getTileHeight());
         return createWritableRaster(sampleModel, location);
     }
 

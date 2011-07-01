@@ -17,6 +17,7 @@
 package org.esa.beam.watermask.operator;
 
 import com.bc.ceres.core.*;
+import com.kenai.jaffl.struct.*;
 import org.esa.beam.framework.datamodel.*;
 import org.esa.beam.util.*;
 import org.esa.beam.watermask.util.*;
@@ -49,8 +50,8 @@ public class WatermaskClassifier {
 
     static final int MODIS_IMAGE_WIDTH = 155520;
     static final int MODIS_IMAGE_HEIGHT = 12960;
-    static final int MODIS_TILE_WIDTH = 576;
-    static final int MODIS_TILE_HEIGHT = 480;
+    static final int MODIS_TILE_WIDTH = 640;
+    static final int MODIS_TILE_HEIGHT = 540;
 
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
@@ -194,26 +195,28 @@ public class WatermaskClassifier {
             tempLon %= 360;
         }
 
-        if (tempLon < 0.0 || tempLon > 360.0 || lat > 90.0 || lat < -90.0) {
+        float normLat = Math.abs(lat - 90.0f);
+
+        if (tempLon < 0.0 || tempLon > 360.0 || normLat < 0.0 || normLat > 180.0) {
             return INVALID_VALUE;
         }
 
-        if (lat < 60.0f && lat > -60.0f) {
-            return getSample(lat, tempLon, 180.0, 360.0, centerImage);
-        } else if(lat >= 60.0f) {
-            return getSample(lat, tempLon, 30.0, 360.0, aboveSixtyNorthImage);
-        } else if(lat <= -60.0f) {
-            return getSample(lat, tempLon, 30.0, 360.0, belowSixtySouthImage);
+        if (normLat < 150.0f && normLat > 30.0f) {
+            return getSample(normLat, tempLon, 180.0, 360.0, 0.0, centerImage);
+        } else if(normLat <= 30.0f) {
+            return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
+        } else if(normLat >= 150.0f) {
+            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
         }
 
         throw new IllegalStateException("Cannot come here");
     }
 
-    private int getSample(double lat, double lon, double latDiff, double lonDiff, OpImage image) {
+    private int getSample(double lat, double lon, double latDiff, double lonDiff, double offset, OpImage image) {
         final double pixelSizeX = lonDiff / image.getWidth();
-        final double pixelSizeY = latDiff / (image.getHeight());
+        final double pixelSizeY = latDiff / image.getHeight();
         final int x = (int) Math.round(lon / pixelSizeX);
-        final int y = (int) Math.round((90.0 - lat) / pixelSizeY);
+        final int y = (int) (Math.round((lat - offset) / pixelSizeY));
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         return tile.getSample(x, y, 0);
     }
