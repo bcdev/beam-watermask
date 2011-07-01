@@ -46,7 +46,7 @@ public class LandMaskRasterCreator {
 
     private static void printUsage() {
         System.out.println("Usage: ");
-        System.out.println("    LandMaskRasterCreator $sourceFile $targetFile");
+        System.out.println("    LandMaskRasterCreator $sourceFile $targetPath");
         System.out.println("    System will exit.");
     }
 
@@ -66,8 +66,10 @@ public class LandMaskRasterCreator {
         final int tileWidth = sourceImage.getTileWidth();
         final int tileHeight = sourceImage.getTileHeight();
         final BufferedImage image = new BufferedImage(tileWidth, tileHeight, BufferedImage.TYPE_BYTE_BINARY);
+        int count = 0;
         for (int tileX = 0; tileX < numXTiles; tileX++) {
             for (int tileY = 0; tileY < numYTiles; tileY++) {
+                count++;
                 final Raster tile = sourceImage.getTile(tileX, tileY);
                 final int minX = tile.getMinX();
                 for (int x = minX; x < minX + tile.getWidth(); x++) {
@@ -77,6 +79,7 @@ public class LandMaskRasterCreator {
                     }
                 }
                 image.setData(sourceImage.getTile(tileX, tileY));
+                System.out.println("Writing image " + count + "/" + numXTiles * numYTiles + ".");
                 ImageIO.write(image, "png", new File(targetPath, String.format("%d-%d.png", tileX, tileY)));
             }
         }
