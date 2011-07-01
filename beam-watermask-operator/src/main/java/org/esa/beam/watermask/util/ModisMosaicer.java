@@ -16,40 +16,26 @@
 
 package org.esa.beam.watermask.util;
 
-import com.bc.ceres.glevel.MultiLevelImage;
-import org.esa.beam.framework.dataio.ProductIO;
-import org.esa.beam.framework.datamodel.Band;
-import org.esa.beam.framework.datamodel.GeoPos;
-import org.esa.beam.framework.datamodel.PixelPos;
-import org.esa.beam.framework.datamodel.Product;
-import org.esa.beam.framework.datamodel.ProductData;
-import org.esa.beam.framework.gpf.GPF;
-import org.esa.beam.jai.ImageHeader;
-import org.esa.beam.util.ImageUtils;
-import org.esa.beam.watermask.operator.WatermaskClassifier;
+import com.bc.ceres.glevel.*;
+import com.kenai.jaffl.struct.*;
+import org.esa.beam.framework.dataio.*;
+import org.esa.beam.framework.datamodel.*;
+import org.esa.beam.framework.gpf.*;
+import org.esa.beam.jai.*;
+import org.esa.beam.util.*;
+import org.esa.beam.watermask.operator.*;
 
-import javax.media.jai.JAI;
-import javax.media.jai.SourcelessOpImage;
-import java.awt.Point;
-import java.awt.image.DataBuffer;
-import java.awt.image.Raster;
-import java.awt.image.WritableRaster;
-import java.io.File;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.util.ArrayList;
+import javax.media.jai.*;
+import java.awt.*;
+import java.awt.image.*;
+import java.io.*;
+import java.util.*;
 import java.util.List;
-import java.util.Properties;
 
 /**
  * @author Thomas Storm
  */
 public class ModisMosaicer {
-
-//    private static final int MODIS_IMAGE_WIDTH = 173025;
-//    private static final int MODIS_IMAGE_HEIGHT = 14403;
-//    private static final int MODIS_TILE_WIDTH = 769;
-//    private static final int MODIS_TILE_HEIGHT = 480;
 
     private static final int MODIS_IMAGE_WIDTH = 155520;
     private static final int MODIS_IMAGE_HEIGHT = 12960;
@@ -94,14 +80,14 @@ public class ModisMosaicer {
 
         public TemporaryMODISImage(ImageHeader imageHeader, Product[] products) {
             super(imageHeader.getImageLayout(),
-                  null,
-                  ImageUtils.createSingleBandedSampleModel(DataBuffer.TYPE_BYTE,
-                                                           imageHeader.getImageLayout().getSampleModel(null).getWidth(),
-                                                           imageHeader.getImageLayout().getSampleModel(null).getHeight()),
-                  imageHeader.getImageLayout().getMinX(null),
-                  imageHeader.getImageLayout().getMinY(null),
-                  imageHeader.getImageLayout().getWidth(null),
-                  imageHeader.getImageLayout().getHeight(null));
+                    null,
+                    ImageUtils.createSingleBandedSampleModel(DataBuffer.TYPE_BYTE,
+                            imageHeader.getImageLayout().getSampleModel(null).getWidth(),
+                            imageHeader.getImageLayout().getSampleModel(null).getHeight()),
+                    imageHeader.getImageLayout().getMinX(null),
+                    imageHeader.getImageLayout().getMinY(null),
+                    imageHeader.getImageLayout().getWidth(null),
+                    imageHeader.getImageLayout().getHeight(null));
             this.products = products;
             setTileCache(JAI.createTileCache(50L * 1024 * 1024));
         }
@@ -117,8 +103,24 @@ public class ModisMosaicer {
 
             for (int x = dest.getMinX(); x < dest.getMinX() + dest.getWidth(); x++) {
                 for (int y = dest.getMinY(); y < dest.getMinY() + dest.getHeight(); y++) {
+
+                    if (y > 10860 || (y > 10474 && x > 154129) || (y > 10460 && x < 1436)) {
+                        dest.setSample(x, y, 0, WatermaskClassifier.LAND_VALUE);
+                        continue;
+                    }
+
+                    int yOffset = 0;
+                    if(y == 4286 || y == 8601) {
+                        yOffset = -1;
+                    }
+
+                    int xOffset = 0;
+                    if(x == 77758 || x == 77759 || x == 77760) {
+                        xOffset = -1;
+                    }
+
                     dest.setSample(x, y, 0, WatermaskClassifier.WATER_VALUE);
-                    final GeoPos geoPos = getGeoPos(x, y);
+                    final GeoPos geoPos = getGeoPos(x + xOffset, y + yOffset);
                     final Product[] products = getProducts(geoPos);
                     for (Product product : products) {
                         product.getGeoCoding().getPixelPos(geoPos, pixelPos);
@@ -127,20 +129,12 @@ public class ModisMosaicer {
                         final Raster tile = sourceImage.getTile(sourceImage.XToTileX((int) pixelPos.x), sourceImage.YToTileY((int) pixelPos.y));
                         final int sample = tile.getSample((int) pixelPos.x, (int) pixelPos.y, 0);
                         if (sample != band.getNoDataValue()) {
-                            dest.setSample(x, y, 0, Math.abs(sample - 1));
+                            dest.setSample(x, y, 0, sample);
                             break;
                         }
                     }
                 }
             }
-
-//            final BufferedImage bufferedImage = new BufferedImage(getTileWidth(), getTileHeight(), BufferedImage.TYPE_BYTE_BINARY);
-//            bufferedImage.setData(dest);
-//            try {
-//                ImageIO.write(bufferedImage, "PNG", new File("C:\\temp\\test.png"));
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
 
             return dest;
         }
@@ -148,8 +142,8 @@ public class ModisMosaicer {
         private GeoPos getGeoPos(int x, int y) {
             final double pixelSizeX = 360.0 / MODIS_IMAGE_WIDTH;
             final double pixelSizeY = -30.0 / MODIS_IMAGE_HEIGHT;
-            double lat = -60.0 + y * pixelSizeY;
             double lon = -180.0 + x * pixelSizeX;
+            double lat = -60.0 + y * pixelSizeY;
             return new GeoPos((float) lat, (float) lon);
         }
 
@@ -158,10 +152,10 @@ public class ModisMosaicer {
             for (Product product : products) {
                 final PixelPos pixelPos = product.getGeoCoding().getPixelPos(geoPos, null);
                 if (pixelPos.isValid() &&
-                    pixelPos.x > 0 &&
-                    pixelPos.x < product.getSceneRasterWidth() &&
-                    pixelPos.y > 0 &&
-                    pixelPos.y < product.getSceneRasterHeight()) {
+                        pixelPos.x > 0 &&
+                        pixelPos.x < product.getSceneRasterWidth() &&
+                        pixelPos.y > 0 &&
+                        pixelPos.y < product.getSceneRasterHeight()) {
                     result.add(product);
                 }
             }
