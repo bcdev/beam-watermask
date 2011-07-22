@@ -16,18 +16,22 @@
 
 package org.esa.beam.watermask.operator;
 
-import com.bc.ceres.core.*;
-import com.kenai.jaffl.struct.*;
-import org.esa.beam.framework.datamodel.*;
-import org.esa.beam.util.*;
-import org.esa.beam.watermask.util.*;
+import com.bc.ceres.core.ProgressMonitor;
+import org.esa.beam.framework.datamodel.GeoCoding;
+import org.esa.beam.framework.datamodel.GeoPos;
+import org.esa.beam.framework.datamodel.PixelPos;
+import org.esa.beam.util.ResourceInstaller;
+import org.esa.beam.util.SystemUtils;
+import org.esa.beam.watermask.util.ImageDescriptor;
+import org.esa.beam.watermask.util.ImageDescriptorBuilder;
 
-import javax.media.jai.*;
-import java.awt.image.*;
-import java.io.*;
-import java.net.*;
-import java.text.*;
-import java.util.*;
+import javax.media.jai.OpImage;
+import java.awt.image.Raster;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.text.MessageFormat;
+import java.util.Properties;
 
 /**
  * Classifies a pixel given by its geo-coordinate as water pixel.
@@ -108,7 +112,7 @@ public class WatermaskClassifier {
     private ImageDescriptor getNorthDescriptor(int mode, File auxdataDir) {
         ImageDescriptor northDescriptor = null;
         switch (mode) {
-            case MODE_MODIS: {
+            case MODE_MODIS:
                 northDescriptor = new ImageDescriptorBuilder()
                         .width(MODIS_IMAGE_WIDTH)
                         .height(MODIS_IMAGE_HEIGHT)
@@ -118,8 +122,7 @@ public class WatermaskClassifier {
                         .zipFileName("MODIS_north_water_mask.zip")
                         .build();
                 break;
-            }
-            case MODE_GC: {
+            case MODE_GC:
                 northDescriptor = new ImageDescriptorBuilder()
                         .width(GC_IMAGE_WIDTH)
                         .height(GC_IMAGE_HEIGHT)
@@ -128,7 +131,10 @@ public class WatermaskClassifier {
                         .auxdataDir(auxdataDir)
                         .zipFileName("GC_water_mask.zip")
                         .build();
-            }
+                break;
+            default:
+                String msg = String.format("Unknown mode '%d'. Known modes are {%d, %d}", mode, MODE_MODIS, MODE_GC);
+                throw new IllegalArgumentException(msg);
         }
         return northDescriptor;
     }
