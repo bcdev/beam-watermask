@@ -59,7 +59,7 @@ public class WatermaskClassifier {
 
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
-    private final PNGSourceImage belowSixtySouthImage;
+//    private final PNGSourceImage belowSixtySouthImage;
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -91,7 +91,7 @@ public class WatermaskClassifier {
         ImageDescriptor southDescriptor = getSouthDescriptor(auxdataDir);
         centerImage = createCenterImage(resolution, auxdataDir);
         aboveSixtyNorthImage = createBorderImage(northDescriptor);
-        belowSixtySouthImage = createBorderImage(southDescriptor);
+//        belowSixtySouthImage = createBorderImage(southDescriptor);
     }
 
     public WatermaskClassifier(int resolution) throws IOException {
@@ -110,7 +110,7 @@ public class WatermaskClassifier {
     }
 
     private ImageDescriptor getNorthDescriptor(int mode, File auxdataDir) {
-        ImageDescriptor northDescriptor = null;
+        ImageDescriptor northDescriptor;
         switch (mode) {
             case MODE_MODIS:
                 northDescriptor = new ImageDescriptorBuilder()
@@ -212,7 +212,8 @@ public class WatermaskClassifier {
         } else if(normLat <= 30.0f) {
             return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
         } else if(normLat >= 150.0f) {
-            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
+            return WATER_VALUE;
+//            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
         }
 
         throw new IllegalStateException("Cannot come here");
@@ -224,6 +225,9 @@ public class WatermaskClassifier {
         final int x = (int) Math.round(lon / pixelSizeX);
         final int y = (int) (Math.round((lat - offset) / pixelSizeY));
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
+        if(tile == null) {
+            return INVALID_VALUE;
+        }
         return tile.getSample(x, y, 0);
     }
 
