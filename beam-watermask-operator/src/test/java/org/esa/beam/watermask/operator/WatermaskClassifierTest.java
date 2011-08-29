@@ -17,6 +17,7 @@
 package org.esa.beam.watermask.operator;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URL;
@@ -95,6 +96,7 @@ public class WatermaskClassifierTest {
     }
 
     @Test
+    @Ignore
     public void testGetWatermaskSampleBelowSixty() throws Exception {
 
         assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-62.611664f, -60.20445f));
@@ -114,6 +116,7 @@ public class WatermaskClassifierTest {
     }
 
     @Test
+    @Ignore
     public void testGetWatermaskSampleAboveSixtyMODIS() throws Exception {
 
         assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(70.860277f, 29.205115f));
