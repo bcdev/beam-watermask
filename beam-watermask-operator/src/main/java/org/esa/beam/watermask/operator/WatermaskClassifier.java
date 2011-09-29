@@ -95,7 +95,7 @@ public class WatermaskClassifier {
     }
 
     public WatermaskClassifier(int resolution) throws IOException {
-        this(resolution, MODE_MODIS);
+        this(resolution, MODE_GC);
     }
 
     private ImageDescriptor getSouthDescriptor(File auxdataDir) {
