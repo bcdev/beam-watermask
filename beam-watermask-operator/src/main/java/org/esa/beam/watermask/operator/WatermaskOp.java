@@ -37,8 +37,15 @@ import java.io.IOException;
 import java.text.MessageFormat;
 
 /**
- * GPF-Operator responsible for creating a product, which contains a single band: a land/water-mask based on
- * SRTM shape files.
+ * The watermask operator is a GPF-Operator. It takes the geographic bounds of the input product and creates a new
+ * product with the same bounds. The output product contains a single band, which is a land/water fraction mask.
+ * For each pixel, it contains the fraction of water; a value of 0.0 indicates land, a value of 100.0 indicates water,
+ * and every value in between indicates a mixed pixel.
+ * <br/>
+ * The water mask is based on data given by SRTM-shapefiles between 60° north and 60° south, and by the GlobCover world
+ * map above 60° north.
+ * Since the base data may exhibit a higher resolution than the input product, a subsampling &ge;1 may be specified;
+ * therefore, mixed pixels may occur.
  *
  * @author Thomas Storm
  */
@@ -49,8 +56,8 @@ import java.text.MessageFormat;
                   authors = "Thomas Storm",
                   copyright = "(c) 2011 by Brockmann Consult",
                   description = "Operator creating a target product with a single band containing a land/water-mask," +
-                                " which is based on SRTM-shapefiles (below 60° north) and the GlobCover world map " +
-                                "(above 60° north) and therefore very accurate.")
+                                " which is based on SRTM-shapefiles (between 60° north and 60° south) and the " +
+                                "GlobCover world map (above 60° north) and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
     @SourceProduct(alias = "source", description = "The Product the land/water-mask shall be computed for.",
