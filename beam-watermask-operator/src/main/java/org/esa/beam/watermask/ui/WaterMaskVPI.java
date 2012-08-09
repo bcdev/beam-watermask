@@ -1,6 +1,8 @@
 package org.esa.beam.watermask.ui;
 
+import com.bc.ceres.core.ProgressMonitor;
 import com.bc.ceres.glevel.MultiLevelImage;
+import com.bc.ceres.swing.progress.ProgressMonitorSwingWorker;
 import com.jidesoft.action.CommandBar;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.Mask;
@@ -62,7 +64,7 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
         });
     }
 
-    private void showLandWaterCoastDialog(VisatApp visatApp) {
+    private void showLandWaterCoastDialog(final VisatApp visatApp) {
         /*JDialog landWaterCoastDialog = new JDialog();
         landWaterCoastDialog.setVisible(true);
 
@@ -96,48 +98,56 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
         GridBagUtils.addToPanel(coastlinePanel, ySamplingSpinner, coastlineConstraints, "gridx=1, insets.right=0");*/
 
 
+        ProgressMonitorSwingWorker pmSwingWorker = new ProgressMonitorSwingWorker(visatApp.getMainFrame(),
+                                                                                  "Computing Land\\Water\\Coast") {
 
+            @Override
+            protected Void doInBackground(ProgressMonitor pm) throws Exception {
+                Product product = visatApp.getSelectedProduct();
+                pm.beginTask("Creating Land\\Water\\Coast", 2);
 
-        Product product = visatApp.getSelectedProduct();
+                try {
 //        Product landWaterProduct = GPF.createProduct("LandWaterMask", GPF.NO_PARAMS, product);
-        Map<String, Object> parameters = new HashMap<String, Object>();
-        parameters.put("subSamplingFactorX", 3);
-        parameters.put("subSamplingFactorY", 3);
-        Product landWaterProduct = GPF.createProduct("LandWaterMask", parameters, product);
-        Band waterFraction = landWaterProduct.getBand("land_water_fraction");
-        // Example: product has tileWidth=498 and tileHeight=611
-        // resulting image has tileWidth=408 and tileHeight=612
-        // Why is this happening and where?
-        // For now we change the image layout here.
-        reformatSourceImage(waterFraction, new ImageLayout(product.getBandAt(0).getSourceImage()));
+                    Map<String, Object> parameters = new HashMap<String, Object>();
+                    parameters.put("subSamplingFactorX", 3);
+                    parameters.put("subSamplingFactorY", 3);
+                    Product landWaterProduct = GPF.createProduct("LandWaterMask", parameters, product);
+                    Band waterFraction = landWaterProduct.getBand("land_water_fraction");
+                    // Example: product has tileWidth=498 and tileHeight=611
+                    // resulting image has tileWidth=408 and tileHeight=612
+                    // Why is this happening and where?
+                    // For now we change the image layout here.
+                    reformatSourceImage(waterFraction, new ImageLayout(product.getBandAt(0).getSourceImage()));
+                    pm.worked(1);
+                    waterFraction.setName("water_fraction");
+                    product.addBand(waterFraction);
 
-        waterFraction.setName("water_fraction");
-        product.addBand(waterFraction);
+                    ProductNodeGroup<Mask> maskGroup = product.getMaskGroup();
+                    Mask landMask = Mask.BandMathsType.create("Land", "Land pixels",
+                                                              waterFraction.getSceneRasterWidth(),
+                                                              waterFraction.getSceneRasterHeight(),
+                                                              "water_fraction < 10", Color.GREEN.darker(), 0.4);
+                    maskGroup.add(landMask);
 
-        ProductNodeGroup<Mask> maskGroup = product.getMaskGroup();
-        Mask landMask = Mask.BandMathsType.create("Land", "Land pixels",
-                                                  waterFraction.getSceneRasterWidth(),
-                                                  waterFraction.getSceneRasterHeight(),
-                                                  "water_fraction < 10", Color.GREEN.darker(), 0.4);
-        maskGroup.add(landMask);
+                    Mask coastlineMask = Mask.BandMathsType.create("Coastline", "Coastline pixels",
+                                                                   waterFraction.getSceneRasterWidth(),
+                                                                   waterFraction.getSceneRasterHeight(),
+                                                                   "water_fraction >= 10 and water_fraction <= 90",
+                                                                   Color.YELLOW, 0.8);
+                    maskGroup.add(coastlineMask);
 
-        Mask coastlineMask = Mask.BandMathsType.create("Coastline", "Coastline pixels",
-                                                  waterFraction.getSceneRasterWidth(),
-                                                  waterFraction.getSceneRasterHeight(),
-                                                  "water_fraction >= 10 and water_fraction <= 90", Color.YELLOW, 0.8);
-        maskGroup.add(coastlineMask);
+                    Mask waterMask = Mask.BandMathsType.create("Water", "Water pixels",
+                                                               waterFraction.getSceneRasterWidth(),
+                                                               waterFraction.getSceneRasterHeight(),
+                                                               "water_fraction > 90", Color.BLUE, 0.4);
+                    maskGroup.add(waterMask);
+                    pm.worked(1);
 
-        Mask waterMask = Mask.BandMathsType.create("Water", "Water pixels",
-                                               waterFraction.getSceneRasterWidth(),
-                                               waterFraction.getSceneRasterHeight(),
-                                               "water_fraction > 90", Color.BLUE, 0.4);
-        maskGroup.add(waterMask);
-
-        String[] bandNames = product.getBandNames();
-        for (String bandName : bandNames) {
-            RasterDataNode raster = product.getRasterDataNode(bandName);
-            raster.getOverlayMaskGroup().add(coastlineMask);
-        }
+                    String[] bandNames = product.getBandNames();
+                    for (String bandName : bandNames) {
+                        RasterDataNode raster = product.getRasterDataNode(bandName);
+                        raster.getOverlayMaskGroup().add(coastlineMask);
+                    }
 
 //        ProductSceneView selectedProductSceneView = visatApp.getSelectedProductSceneView();
 //        if (selectedProductSceneView != null) {
@@ -146,6 +156,17 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
 //            raster.getOverlayMaskGroup().add(coastlineMask);
 //            raster.getOverlayMaskGroup().add(waterMask);
 //        }
+                } finally {
+                    pm.done();
+                }
+                return null;
+            }
+
+
+        };
+
+        pmSwingWorker.executeWithBlocking();
+
 
     }
 
