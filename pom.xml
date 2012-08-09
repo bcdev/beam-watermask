@@ -16,7 +16,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <beam.version>4.10</beam.version>
+        <beam.version>4.10.3</beam.version>
         <geotools.version>2.7.4</geotools.version>
     </properties>
 
@@ -25,6 +25,11 @@
             <dependency>
                 <groupId>org.esa.beam</groupId>
                 <artifactId>beam-gpf</artifactId>
+                <version>${beam.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.esa.beam</groupId>
+                <artifactId>beam-visat</artifactId>
                 <version>${beam.version}</version>
             </dependency>
             <dependency>
