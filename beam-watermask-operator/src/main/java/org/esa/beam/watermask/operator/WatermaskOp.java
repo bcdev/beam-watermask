@@ -19,6 +19,7 @@ package org.esa.beam.watermask.operator;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.GeoCoding;
+import org.esa.beam.framework.datamodel.GeoPos;
 import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.ProductData;
@@ -60,6 +61,8 @@ import java.text.MessageFormat;
                                 "GlobCover world map (above 60° north) and therefore very accurate.")
 public class WatermaskOp extends Operator {
 
+    public static final String LAND_WATER_FRACTION_BAND_NAME = "land_water_fraction";
+    public static final String COAST_BAND_NAME = "coast";
     @SourceProduct(alias = "source", description = "The Product the land/water-mask shall be computed for.",
                    label = "Name")
     private Product sourceProduct;
@@ -98,19 +101,48 @@ public class WatermaskOp extends Operator {
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
         final Rectangle rectangle = targetTile.getRectangle();
         try {
+            final String targetBandName = targetBand.getName();
             final PixelPos pixelPos = new PixelPos();
             final GeoCoding geoCoding = sourceProduct.getGeoCoding();
             for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                 for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                     pixelPos.x = x;
                     pixelPos.y = y;
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactorX, subSamplingFactorY);
-                    targetTile.setSample(x, y, waterFraction);
+                    int dataValue = 0;
+                    if (targetBandName.equals(LAND_WATER_FRACTION_BAND_NAME)) {
+                        dataValue = classifier.getWaterMaskFraction(geoCoding, pixelPos,
+                                                                    subSamplingFactorX,
+                                                                    subSamplingFactorY);
+                    } else if (targetBandName.equals(COAST_BAND_NAME)) {
+                        final boolean coastline = isCoastline(geoCoding, pixelPos,
+                                                              subSamplingFactorX,
+                                                              subSamplingFactorY);
+                        dataValue = coastline ? 1 : 0;
+                    }
+                    targetTile.setSample(x, y, dataValue);
                 }
             }
+
         } catch (Exception e) {
             throw new OperatorException("Error computing tile '" + targetTile.getRectangle().toString() + "'.", e);
         }
+    }
+
+    private boolean isCoastline(GeoCoding geoCoding, PixelPos pixelPos,int superSamplingX,int superSamplingY) {
+        double xStep = 1.0 / superSamplingX;
+        double yStep = 1.0 / superSamplingY;
+        final GeoPos geoPos = new GeoPos();
+        final PixelPos currentPos = new PixelPos();
+        for (int sx = 0; sx < superSamplingX; sx++) {
+            currentPos.x = (float) (pixelPos.x + sx * xStep);
+            for (int sy = 0; sy < superSamplingY; sy++) {
+                currentPos.y = (float) (pixelPos.y + sy * yStep);
+                geoCoding.getGeoPos(currentPos, geoPos);
+                // Todo: Implement coastline algorithm here
+                //
+            }
+        }
+        return false;
     }
 
     private void validateParameter() {
@@ -119,8 +151,9 @@ public class WatermaskOp extends Operator {
                                                       WatermaskClassifier.RESOLUTION_50,
                                                       WatermaskClassifier.RESOLUTION_150));
         }
-        if(subSamplingFactorX < 1) {
-            String message = MessageFormat.format("Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactorX);
+        if (subSamplingFactorX < 1) {
+            String message = MessageFormat.format(
+                    "Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactorX);
             throw new OperatorException(message);
         }
     }
@@ -139,9 +172,14 @@ public class WatermaskOp extends Operator {
     private void initTargetProduct() {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        final Band band = targetProduct.addBand("land_water_fraction", ProductData.TYPE_FLOAT32);
-        band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
-        band.setNoDataValueUsed(true);
+        final Band waterBand = targetProduct.addBand(LAND_WATER_FRACTION_BAND_NAME, ProductData.TYPE_FLOAT32);
+        waterBand.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
+        waterBand.setNoDataValueUsed(true);
+
+        final Band coastBand = targetProduct.addBand(COAST_BAND_NAME, ProductData.TYPE_FLOAT32);
+        coastBand.setNoDataValue(0);
+        coastBand.setNoDataValueUsed(true);
+
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
     }
 

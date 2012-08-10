@@ -5,6 +5,8 @@ import com.bc.ceres.glevel.MultiLevelImage;
 import com.bc.ceres.swing.progress.ProgressMonitorSwingWorker;
 import com.jidesoft.action.CommandBar;
 import org.esa.beam.framework.datamodel.Band;
+import org.esa.beam.framework.datamodel.ConvolutionFilterBand;
+import org.esa.beam.framework.datamodel.Kernel;
 import org.esa.beam.framework.datamodel.Mask;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.ProductNodeGroup;
@@ -56,10 +58,12 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
     public static final String COMMAND_ID = "createLandWaterCoastMasks";
     public static final String LAND_WATER_MASK_OP_ALIAS = "LandWaterMask";
     public static final String TARGET_TOOL_BAR_NAME = "layersToolBar";
+    public static final String WATER_FRACTION_BAND_NAME = "water_fraction";
+    public static final String BLURRED_WATER_FRACTION_NAME = "blurred_water_fraction";
 
-    String landExpression = "water_fraction < 10";
-    String coastlineExpression = "water_fraction > 0.1 and water_fraction < 99.1";
-    String waterExpression = "water_fraction > 90";
+    String landExpression = WATER_FRACTION_BAND_NAME + " < 15";
+    String coastlineExpression = BLURRED_WATER_FRACTION_NAME + " > 15 and " + BLURRED_WATER_FRACTION_NAME + " < 85";
+    String waterExpression = WATER_FRACTION_BAND_NAME + " > 85";
 
     boolean showCoastline = true;
     boolean showLandMask = false;
@@ -68,31 +72,8 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
     @Override
     public void start(final VisatApp visatApp) {
         final ExecCommand action = visatApp.getCommandManager().createExecCommand(COMMAND_ID,
-              new CommandAdapter() {
-                  @Override
-                  public void actionPerformed(
-                          CommandEvent event) {
-                      showLandWaterCoastMasks(
-                              visatApp);
-//                      ((ExecCommand)visatApp.getCommandManager().getCommand(
-//                              "createFilteredBand")).execute();
-                  }
-                    @Override
-                    public void updateState(
-                            CommandEvent event) {
-                        Product selectedProduct = visatApp.getSelectedProduct();
-                        boolean productSelected = selectedProduct != null;
-                        boolean hasBands = false;
-                        boolean hasGeoCoding = false;
-                        if (productSelected) {
-                            hasBands = selectedProduct.getNumBands() > 0;
-                            hasGeoCoding = selectedProduct.getGeoCoding() != null;
-                        }
-                        event.getCommand().setEnabled(
-                                productSelected && hasBands && hasGeoCoding);
-                    }
-                });
-        action.setLargeIcon(UIUtils.loadImageIcon("/images/dock.gif"));
+                                                                                  new ToolbarCommand(visatApp));
+        action.setLargeIcon(UIUtils.loadImageIcon("/org/esa/beam/watermask/ui/icons/dock.gif"));
 
         final AbstractButton lwcButton = visatApp.createToolButton(COMMAND_ID);
 
@@ -155,6 +136,7 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
                     parameters.put("subSamplingFactorY", 3);
                     Product landWaterProduct = GPF.createProduct(LAND_WATER_MASK_OP_ALIAS, parameters, product);
                     Band waterFractionBand = landWaterProduct.getBand("land_water_fraction");
+                    Band coastBand = landWaterProduct.getBand("coast");
 
                     // PROBLEM WITH TILE SIZES
                     // Example: product has tileWidth=498 and tileHeight=611
@@ -162,28 +144,42 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
                     // Why is this happening and where?
                     // For now we change the image layout here.
                     reformatSourceImage(waterFractionBand, new ImageLayout(product.getBandAt(0).getSourceImage()));
+                    reformatSourceImage(coastBand, new ImageLayout(product.getBandAt(0).getSourceImage()));
 
                     pm.worked(1);
-                    waterFractionBand.setName("water_fraction");
+                    waterFractionBand.setName(WATER_FRACTION_BAND_NAME);
                     product.addBand(waterFractionBand);
+                    product.addBand(coastBand);
+
+                    //todo replace with JAI operator "GeneralFilter" which uses a GeneralFilterFunction
+                    final Kernel arithmeticMean3x3Kernel = new Kernel(3, 3, 1.0 / 9.0,
+                                                                      new double[]{
+                                                                              +1, +1, +1,
+                                                                              +1, +1, +1,
+                                                                              +1, +1, +1,
+                                                                      });
+                    final ConvolutionFilterBand filteredCoastlineBand = new ConvolutionFilterBand(BLURRED_WATER_FRACTION_NAME,
+                                                                                          waterFractionBand,
+                                                                                          arithmeticMean3x3Kernel);
+                    product.addBand(filteredCoastlineBand);
 
                     ProductNodeGroup<Mask> maskGroup = product.getMaskGroup();
                     Mask landMask = Mask.BandMathsType.create("poormans_land", "Land pixels",
-                                                              waterFractionBand.getSceneRasterWidth(),
-                                                              waterFractionBand.getSceneRasterHeight(),
+                                                              product.getSceneRasterWidth(),
+                                                              product.getSceneRasterHeight(),
                                                               landExpression, Color.GREEN.darker(), 0.4);
                     maskGroup.add(landMask);
 
                     Mask coastlineMask = Mask.BandMathsType.create("poormans_coastline", "Coastline pixels",
-                                                                   waterFractionBand.getSceneRasterWidth(),
-                                                                   waterFractionBand.getSceneRasterHeight(),
+                                                                   product.getSceneRasterWidth(),
+                                                                   product.getSceneRasterHeight(),
                                                                    coastlineExpression,
-                                                                   Color.YELLOW, 0.8);
+                                                                   Color.YELLOW, 0.2);
                     maskGroup.add(coastlineMask);
 
                     Mask waterMask = Mask.BandMathsType.create("poormans_water", "Water pixels",
-                                                               waterFractionBand.getSceneRasterWidth(),
-                                                               waterFractionBand.getSceneRasterHeight(),
+                                                               product.getSceneRasterWidth(),
+                                                               product.getSceneRasterHeight(),
                                                                waterExpression, Color.BLUE, 0.4);
                     maskGroup.add(waterMask);
                     pm.worked(1);
@@ -201,6 +197,8 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
                             raster.getOverlayMaskGroup().add(waterMask);
                         }
                     }
+
+//                    visatApp.setSelectedProductNode(waterFractionBand);
 
 //        ProductSceneView selectedProductSceneView = visatApp.getSelectedProductSceneView();
 //        if (selectedProductSceneView != null) {
@@ -230,5 +228,36 @@ public class WaterMaskVPI extends AbstractVisatPlugIn {
         RenderedImage newImage = FormatDescriptor.create(waterFractionSourceImage, waterFractionDataType,
                                                          renderingHints);
         band.setSourceImage(newImage);
+    }
+
+    private class ToolbarCommand extends CommandAdapter {
+        private final VisatApp visatApp;
+
+        public ToolbarCommand(VisatApp visatApp) {
+            this.visatApp = visatApp;
+        }
+
+        @Override
+        public void actionPerformed(
+                CommandEvent event) {
+            showLandWaterCoastMasks(
+                    visatApp);
+
+        }
+
+        @Override
+        public void updateState(
+                CommandEvent event) {
+            Product selectedProduct = visatApp.getSelectedProduct();
+            boolean productSelected = selectedProduct != null;
+            boolean hasBands = false;
+            boolean hasGeoCoding = false;
+            if (productSelected) {
+                hasBands = selectedProduct.getNumBands() > 0;
+                hasGeoCoding = selectedProduct.getGeoCoding() != null;
+            }
+            event.getCommand().setEnabled(
+                    productSelected && hasBands && hasGeoCoding);
+        }
     }
 }
