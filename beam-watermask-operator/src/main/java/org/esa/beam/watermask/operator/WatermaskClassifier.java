@@ -78,6 +78,7 @@ public class WatermaskClassifier {
      *                   above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
      *                   south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
      *                   on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
     public WatermaskClassifier(int resolution, int mode) throws IOException {
@@ -192,6 +193,7 @@ public class WatermaskClassifier {
      *
      * @param lat The latitude value.
      * @param lon The longitude value.
+     *
      * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
      *         about the position.
      */
@@ -209,9 +211,9 @@ public class WatermaskClassifier {
 
         if (normLat < 150.0f && normLat > 30.0f) {
             return getSample(normLat, tempLon, 180.0, 360.0, 0.0, centerImage);
-        } else if(normLat <= 30.0f) {
+        } else if (normLat <= 30.0f) {
             return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
-        } else if(normLat >= 150.0f) {
+        } else if (normLat >= 150.0f) {
             return WATER_VALUE;
 //            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
         }
@@ -219,13 +221,13 @@ public class WatermaskClassifier {
         throw new IllegalStateException("Cannot come here");
     }
 
-    private int getSample(double lat, double lon, double latDiff, double lonDiff, double offset, OpImage image) {
-        final double pixelSizeX = lonDiff / image.getWidth();
-        final double pixelSizeY = latDiff / image.getHeight();
+    private int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
+        final double pixelSizeX = lonWidth / image.getWidth();
+        final double pixelSizeY = latHeight / image.getHeight();
         final int x = (int) Math.round(lon / pixelSizeX);
-        final int y = (int) (Math.round((lat - offset) / pixelSizeY));
+        final int y = (int) (Math.round((lat - latOffset) / pixelSizeY));
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
-        if(tile == null) {
+        if (tile == null) {
             return INVALID_VALUE;
         }
         return tile.getSample(x, y, 0);
@@ -242,9 +244,11 @@ public class WatermaskClassifier {
      * @param subsamplingFactorY The factor between the high resolution water mask and the - lower resolution -
      *                           source image in y direction. Only values in [1..M] are sensible,
      *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
+     *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
      */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX, int subsamplingFactorY) {
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX,
+                                     int subsamplingFactorY) {
         float valueSum = 0;
         double xStep = 1.0 / subsamplingFactorX;
         double yStep = 1.0 / subsamplingFactorY;
@@ -292,7 +296,9 @@ public class WatermaskClassifier {
      *
      * @param lat The latitude value.
      * @param lon The longitude value.
+     *
      * @return true, if the geo-position is over water, false otherwise.
+     *
      * @throws java.io.IOException If some IO-error occurs reading the source file.
      */
     public boolean isWater(float lat, float lon) throws IOException {
