@@ -17,6 +17,7 @@
 package org.esa.beam.watermask.util;
 
 import org.esa.beam.watermask.operator.WatermaskUtils;
+import org.geotools.coverage.grid.GridEnvelope2D;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.data.FeatureSource;
@@ -26,6 +27,7 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.DefaultMapContext;
 import org.geotools.map.MapContext;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.geotools.referencing.operation.builder.GridToEnvelopeMapper;
 import org.geotools.renderer.lite.StreamingRenderer;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.Fill;
@@ -37,10 +39,12 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.filter.FilterFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.datum.PixelInCell;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
@@ -139,7 +143,7 @@ class ShapeFileRasterizer {
         }
     }
 
-    BufferedImage createImage(File shapeFile, int tileSize) throws IOException {
+    BufferedImage createImage(File shapeFile, int tileSize) throws Exception {
         CoordinateReferenceSystem crs = DefaultGeographicCRS.WGS84;
         final String shapeFileName = shapeFile.getName();
         final ReferencedEnvelope referencedEnvelope = parseEnvelopeFromShapeFileName(shapeFileName, crs);
@@ -153,12 +157,24 @@ class ShapeFileRasterizer {
         BufferedImage landMaskImage = new BufferedImage(tileSize, tileSize, BufferedImage.TYPE_BYTE_BINARY);
         Graphics2D graphics = landMaskImage.createGraphics();
 
-
         StreamingRenderer renderer = new StreamingRenderer();
         renderer.setContext(context);
-        renderer.paint(graphics, new Rectangle(0, 0, tileSize, tileSize), referencedEnvelope);
+
+        Rectangle paintArea = new Rectangle(0, 0, tileSize, tileSize);
+        // the transform is computed here, because it ensures that the pixel anchor is in the pixel center and
+        // not at the corner as the StreamingRenderer does by default
+        AffineTransform transform = createWorldToScreenTransform(referencedEnvelope, paintArea);
+
+        renderer.paint(graphics, paintArea, referencedEnvelope, transform);
 
         return landMaskImage;
+    }
+
+    private AffineTransform createWorldToScreenTransform(ReferencedEnvelope referencedEnvelope, Rectangle paintArea) throws Exception {
+        GridEnvelope2D gridRange = new GridEnvelope2D(paintArea);
+        final GridToEnvelopeMapper mapper = new GridToEnvelopeMapper(gridRange, referencedEnvelope);
+        mapper.setPixelAnchor(PixelInCell.CELL_CENTER);
+        return mapper.createAffineTransform().createInverse();
     }
 
     private ReferencedEnvelope parseEnvelopeFromShapeFileName(String shapeFileName, CoordinateReferenceSystem crs) {
