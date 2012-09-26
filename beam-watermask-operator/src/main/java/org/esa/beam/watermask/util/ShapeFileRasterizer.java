@@ -105,10 +105,6 @@ class ShapeFileRasterizer {
             }
         });
         if (shapeFiles != null) {
-            if (shapeFiles.length == 0) {
-                System.out.println("No shapefiles Found!");
-                return;
-            }
             rasterizeShapeFiles(shapeFiles, tileSize, createImage);
         }
         File[] subdirs = directory.listFiles(new FileFilter() {
