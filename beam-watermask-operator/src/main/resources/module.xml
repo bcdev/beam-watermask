@@ -1,7 +1,7 @@
 <module>
     <manifestVersion>1.0.0</manifestVersion>
     <symbolicName>beam-watermask</symbolicName>
-    <version>1.2</version>
+    <version>1.3</version>
     <name>Land-Water mask</name>
 
     <description>Accurate Land/Water-mask based on shape files.</description>
