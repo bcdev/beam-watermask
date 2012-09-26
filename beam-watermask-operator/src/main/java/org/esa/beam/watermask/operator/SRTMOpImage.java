@@ -79,12 +79,13 @@ public class SRTMOpImage extends SourcelessOpImage {
         try {
             return readRawDataTile(tileX, tileY);
         } catch (IOException e) {
-            throw new RuntimeException(MessageFormat.format("Failed to read image tile ''{0} | {1}''.", tileX, tileY), e);
+            String msg = MessageFormat.format("Failed to read image tile ''{0} | {1}''.", tileX, tileY);
+            throw new RuntimeException(msg, e);
         }
     }
 
     @Override
-    public void dispose() {
+    public synchronized void dispose() {
         try {
             zipFile.close();
         } catch (IOException e) {
