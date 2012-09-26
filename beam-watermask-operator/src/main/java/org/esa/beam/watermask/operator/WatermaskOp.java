@@ -51,7 +51,7 @@ import java.text.MessageFormat;
  */
 @SuppressWarnings({"FieldCanBeLocal"})
 @OperatorMetadata(alias = "LandWaterMask",
-                  version = "1.0",
+                  version = "1.3",
                   internal = false,
                   authors = "Thomas Storm",
                   copyright = "(c) 2011 by Brockmann Consult",
@@ -100,11 +100,13 @@ public class WatermaskOp extends Operator {
         try {
             final PixelPos pixelPos = new PixelPos();
             final GeoCoding geoCoding = sourceProduct.getGeoCoding();
-            for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
-                for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
+            for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
+                for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                     pixelPos.x = x;
                     pixelPos.y = y;
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos, subSamplingFactorX, subSamplingFactorY);
+                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos,
+                                                                               subSamplingFactorX,
+                                                                               subSamplingFactorY);
                     targetTile.setSample(x, y, waterFraction);
                 }
             }
@@ -119,8 +121,9 @@ public class WatermaskOp extends Operator {
                                                       WatermaskClassifier.RESOLUTION_50,
                                                       WatermaskClassifier.RESOLUTION_150));
         }
-        if(subSamplingFactorX < 1) {
-            String message = MessageFormat.format("Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.", subSamplingFactorX);
+        if (subSamplingFactorX < 1) {
+            String msgPattern = "Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.";
+            String message = MessageFormat.format(msgPattern, subSamplingFactorX);
             throw new OperatorException(message);
         }
     }
