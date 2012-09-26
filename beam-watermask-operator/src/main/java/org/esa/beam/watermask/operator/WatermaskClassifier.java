@@ -59,7 +59,23 @@ public class WatermaskClassifier {
 
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
-//    private final PNGSourceImage belowSixtySouthImage;
+    private float[] samplingStepsX;
+    private float[] samplingStepsY;
+    private final int numSuperSamples;
+    //    private final PNGSourceImage belowSixtySouthImage;
+
+
+    public WatermaskClassifier(int resolution) throws IOException {
+        this(resolution, MODE_GC, 1, 1);
+    }
+
+    public WatermaskClassifier(int resolution, int mode) throws IOException {
+        this(resolution, mode, 1, 1);
+    }
+
+    public WatermaskClassifier(int resolution, int superSamplingX, int superSamplingY) throws IOException {
+        this(resolution, MODE_GC, superSamplingX, superSamplingY);
+    }
 
     /**
      * Creates a new classifier instance on the given resolution.
@@ -81,63 +97,22 @@ public class WatermaskClassifier {
      *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
-    public WatermaskClassifier(int resolution, int mode) throws IOException {
+    public WatermaskClassifier(int resolution, int mode, int superSamplingX, int superSamplingY) throws IOException {
         if (resolution != RESOLUTION_50 && resolution != RESOLUTION_150) {
             throw new IllegalArgumentException(
                     MessageFormat.format("Resolution needs to be {0} or {1}.", RESOLUTION_50, RESOLUTION_150));
         }
 
+        this.numSuperSamples = superSamplingX * superSamplingY;
+        samplingStepsX = getSuperSamplingSteps(superSamplingX);
+        samplingStepsY = getSuperSamplingSteps(superSamplingY);
+
         final File auxdataDir = installAuxdata();
-        ImageDescriptor northDescriptor = getNorthDescriptor(mode, auxdataDir);
-        ImageDescriptor southDescriptor = getSouthDescriptor(auxdataDir);
         centerImage = createCenterImage(resolution, auxdataDir);
+        ImageDescriptor northDescriptor = getNorthDescriptor(mode, auxdataDir);
         aboveSixtyNorthImage = createBorderImage(northDescriptor);
+//        ImageDescriptor southDescriptor = getSouthDescriptor(auxdataDir);
 //        belowSixtySouthImage = createBorderImage(southDescriptor);
-    }
-
-    public WatermaskClassifier(int resolution) throws IOException {
-        this(resolution, MODE_GC);
-    }
-
-    private ImageDescriptor getSouthDescriptor(File auxdataDir) {
-        return new ImageDescriptorBuilder()
-                .width(MODIS_IMAGE_WIDTH)
-                .height(MODIS_IMAGE_HEIGHT)
-                .tileWidth(MODIS_TILE_WIDTH)
-                .tileHeight(MODIS_TILE_HEIGHT)
-                .auxdataDir(auxdataDir)
-                .zipFileName("MODIS_south_water_mask.zip")
-                .build();
-    }
-
-    private ImageDescriptor getNorthDescriptor(int mode, File auxdataDir) {
-        ImageDescriptor northDescriptor;
-        switch (mode) {
-            case MODE_MODIS:
-                northDescriptor = new ImageDescriptorBuilder()
-                        .width(MODIS_IMAGE_WIDTH)
-                        .height(MODIS_IMAGE_HEIGHT)
-                        .tileWidth(MODIS_TILE_WIDTH)
-                        .tileHeight(MODIS_TILE_HEIGHT)
-                        .auxdataDir(auxdataDir)
-                        .zipFileName("MODIS_north_water_mask.zip")
-                        .build();
-                break;
-            case MODE_GC:
-                northDescriptor = new ImageDescriptorBuilder()
-                        .width(GC_IMAGE_WIDTH)
-                        .height(GC_IMAGE_HEIGHT)
-                        .tileWidth(GC_TILE_WIDTH)
-                        .tileHeight(GC_TILE_HEIGHT)
-                        .auxdataDir(auxdataDir)
-                        .zipFileName("GC_water_mask.zip")
-                        .build();
-                break;
-            default:
-                String msg = String.format("Unknown mode '%d'. Known modes are {%d, %d}", mode, MODE_MODIS, MODE_GC);
-                throw new IllegalArgumentException(msg);
-        }
-        return northDescriptor;
     }
 
     private SRTMOpImage createCenterImage(int resolution, File auxdataDir) throws IOException {
@@ -189,6 +164,21 @@ public class WatermaskClassifier {
     }
 
     /**
+     * Classifies the given geo-position as water or land.
+     *
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     *
+     * @return true, if the geo-position is over water, false otherwise.
+     *
+     * @throws java.io.IOException If some IO-error occurs reading the source file.
+     */
+    public boolean isWater(float lat, float lon) throws IOException {
+        final int waterMaskSample = getWaterMaskSample(lat, lon);
+        return waterMaskSample == WATER_VALUE;
+    }
+
+    /**
      * Returns the sample value at the given geo-position, regardless of the source resolution.
      *
      * @param lat The latitude value.
@@ -221,7 +211,41 @@ public class WatermaskClassifier {
         throw new IllegalStateException("Cannot come here");
     }
 
-    private int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
+    /**
+     * Returns the fraction of water for the given region, considering a subsampling factor.
+     *
+     * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
+     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
+     *
+     * @return The fraction of water in the given geographic rectangle, in the range [0..100].
+     */
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos) {
+        final GeoPos geoPos = new GeoPos();
+        final PixelPos currentPos = new PixelPos();
+        float valueSum = 0;
+        int invalidCount = 0;
+        // just use the index of the pixel
+        // the fraction (center) of a pixel is considered by the super sampling
+        int pixelPosY = (int) Math.floor(pixelPos.y);
+        int pixelPosX = (int) Math.floor(pixelPos.x);
+        for (float samplingStepY : samplingStepsY) {
+            currentPos.y = pixelPosY + samplingStepY;
+            for (float samplingStepX : samplingStepsX) {
+                currentPos.x = pixelPosX + samplingStepX;
+                geoCoding.getGeoPos(currentPos, geoPos);
+                int waterMaskSample = getWaterMaskSample(geoPos);
+                if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
+                    valueSum += waterMaskSample;
+                } else {
+                    invalidCount++;
+                }
+            }
+        }
+        return computeAverage(valueSum, invalidCount, numSuperSamples);
+    }
+
+
+    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
         final double pixelSizeX = lonWidth / image.getWidth();
         final double pixelSizeY = latHeight / image.getHeight();
         final int x = (int) Math.round(lon / pixelSizeX);
@@ -233,51 +257,25 @@ public class WatermaskClassifier {
         return tile.getSample(x, y, 0);
     }
 
-    /**
-     * Returns the fraction of water for the given region, considering a subsampling factor.
-     *
-     * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
-     * @param subsamplingFactorX The factor between the high resolution water mask and the - lower resolution -
-     *                           source image in x direction. Only values in [1..M] are sensible,
-     *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
-     * @param subsamplingFactorY The factor between the high resolution water mask and the - lower resolution -
-     *                           source image in y direction. Only values in [1..M] are sensible,
-     *                           with M = (source image resolution in m/pixel) / (50 m/pixel)
-     *
-     * @return The fraction of water in the given geographic rectangle, in the range [0..100].
-     */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos, int subsamplingFactorX,
-                                     int subsamplingFactorY) {
-        float valueSum = 0;
-        double xStep = 1.0 / subsamplingFactorX;
-        double yStep = 1.0 / subsamplingFactorY;
-        final GeoPos geoPos = new GeoPos();
-        final PixelPos currentPos = new PixelPos();
-        int invalidCount = 0;
-        for (int sy = 0; sy < subsamplingFactorY; sy++) {
-            currentPos.y = (float) (pixelPos.y + sy * yStep);
-            for (int sx = 0; sx < subsamplingFactorX; sx++) {
-                currentPos.x = (float) (pixelPos.x + sx * xStep);
-                geoCoding.getGeoPos(currentPos, geoPos);
-                int waterMaskSample = getWaterMaskSample(geoPos);
-                if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
-                    valueSum += waterMaskSample;
-                } else {
-                    invalidCount++;
-                }
+    private static float[] getSuperSamplingSteps(int superSampling) {
+        if (superSampling <= 1) {
+            return new float[]{0.5f};
+        } else {
+            float[] samplingStep = new float[superSampling];
+            for (int i = 0; i < samplingStep.length; i++) {
+                samplingStep[i] = (i * 2.0F + 1.0F) / (2.0F * superSampling);
             }
+            return samplingStep;
         }
-
-        return computeAverage(subsamplingFactorX, subsamplingFactorY, valueSum, invalidCount);
     }
 
-    private byte computeAverage(int subsamplingFactorX, int subsamplingFactorY, float valueSum, int invalidCount) {
-        final boolean allValuesInvalid = invalidCount == subsamplingFactorX * subsamplingFactorY;
+
+    private static byte computeAverage(float valueSum, int invalidCount, int numSuperSamples) {
+        final boolean allValuesInvalid = invalidCount == numSuperSamples;
         if (allValuesInvalid) {
             return WatermaskClassifier.INVALID_VALUE;
         } else {
-            return (byte) (100 * valueSum / (subsamplingFactorX * subsamplingFactorY));
+            return (byte) (100 * valueSum / numSuperSamples);
         }
     }
 
@@ -291,19 +289,45 @@ public class WatermaskClassifier {
         return waterMaskSample;
     }
 
-    /**
-     * Classifies the given geo-position as water or land.
-     *
-     * @param lat The latitude value.
-     * @param lon The longitude value.
-     *
-     * @return true, if the geo-position is over water, false otherwise.
-     *
-     * @throws java.io.IOException If some IO-error occurs reading the source file.
-     */
-    public boolean isWater(float lat, float lon) throws IOException {
-        final int waterMaskSample = getWaterMaskSample(lat, lon);
-        return waterMaskSample == WATER_VALUE;
+    private static ImageDescriptor getSouthDescriptor(File auxdataDir) {
+        return new ImageDescriptorBuilder()
+                .width(MODIS_IMAGE_WIDTH)
+                .height(MODIS_IMAGE_HEIGHT)
+                .tileWidth(MODIS_TILE_WIDTH)
+                .tileHeight(MODIS_TILE_HEIGHT)
+                .auxdataDir(auxdataDir)
+                .zipFileName("MODIS_south_water_mask.zip")
+                .build();
+    }
+
+    private static ImageDescriptor getNorthDescriptor(int mode, File auxdataDir) {
+        ImageDescriptor northDescriptor;
+        switch (mode) {
+            case MODE_MODIS:
+                northDescriptor = new ImageDescriptorBuilder()
+                        .width(MODIS_IMAGE_WIDTH)
+                        .height(MODIS_IMAGE_HEIGHT)
+                        .tileWidth(MODIS_TILE_WIDTH)
+                        .tileHeight(MODIS_TILE_HEIGHT)
+                        .auxdataDir(auxdataDir)
+                        .zipFileName("MODIS_north_water_mask.zip")
+                        .build();
+                break;
+            case MODE_GC:
+                northDescriptor = new ImageDescriptorBuilder()
+                        .width(GC_IMAGE_WIDTH)
+                        .height(GC_IMAGE_HEIGHT)
+                        .tileWidth(GC_TILE_WIDTH)
+                        .tileHeight(GC_TILE_HEIGHT)
+                        .auxdataDir(auxdataDir)
+                        .zipFileName("GC_water_mask.zip")
+                        .build();
+                break;
+            default:
+                String msg = String.format("Unknown mode '%d'. Known modes are {%d, %d}", mode, MODE_MODIS, MODE_GC);
+                throw new IllegalArgumentException(msg);
+        }
+        return northDescriptor;
     }
 
 }

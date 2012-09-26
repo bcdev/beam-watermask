@@ -88,7 +88,7 @@ public class WatermaskOp extends Operator {
         validateSourceProduct();
         initTargetProduct();
         try {
-            classifier = new WatermaskClassifier(resolution);
+            classifier = new WatermaskClassifier(resolution, subSamplingFactorX, subSamplingFactorY);
         } catch (IOException e) {
             throw new OperatorException("Error creating class WatermaskClassifier.", e);
         }
@@ -104,9 +104,7 @@ public class WatermaskOp extends Operator {
                 for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
                     pixelPos.x = x;
                     pixelPos.y = y;
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos,
-                                                                               subSamplingFactorX,
-                                                                               subSamplingFactorY);
+                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos);
                     targetTile.setSample(x, y, waterFraction);
                 }
             }
