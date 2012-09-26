@@ -255,10 +255,10 @@ public class WatermaskClassifier {
         final GeoPos geoPos = new GeoPos();
         final PixelPos currentPos = new PixelPos();
         int invalidCount = 0;
-        for (int sx = 0; sx < subsamplingFactorX; sx++) {
-            currentPos.x = (float) (pixelPos.x + sx * xStep);
-            for (int sy = 0; sy < subsamplingFactorY; sy++) {
-                currentPos.y = (float) (pixelPos.y + sy * yStep);
+        for (int sy = 0; sy < subsamplingFactorY; sy++) {
+            currentPos.y = (float) (pixelPos.y + sy * yStep);
+            for (int sx = 0; sx < subsamplingFactorX; sx++) {
+                currentPos.x = (float) (pixelPos.x + sx * xStep);
                 geoCoding.getGeoPos(currentPos, geoPos);
                 int waterMaskSample = getWaterMaskSample(geoPos);
                 if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
