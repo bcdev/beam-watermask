@@ -57,8 +57,6 @@ public class WatermaskClassifier {
     static final int MODIS_TILE_WIDTH = 640;
     static final int MODIS_TILE_HEIGHT = 540;
 
-    static final String AUXDATA_VERSION = "v1.2";
-
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
     private float[] samplingStepsX;
@@ -89,13 +87,21 @@ public class WatermaskClassifier {
      * for the given geo-position is returned.
      * If the fill algorithm is not performed a value indicating invalid is returned.
      *
-     * @param resolution The resolution specifying on source data is to be queried. Needs to be
-     *                   <code>RESOLUTION_50</code> or <code>RESOLUTION_150</code>.
-     * @param mode       The mode the classifier shall run in. Must be one of <code>MODE_MODIS</code> or
-     *                   <code>MODE_GC</code>. If <code>MODE_MODIS</code> is chosen, the watermask is based on MODIS
-     *                   above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
-     *                   south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
-     *                   on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     * @param resolution     The resolution specifying on source data is to be queried. Needs to be
+     *                       <code>RESOLUTION_50</code> or <code>RESOLUTION_150</code>.
+     * @param mode           The mode the classifier shall run in. Must be one of <code>MODE_MODIS</code> or
+     *                       <code>MODE_GC</code>. If <code>MODE_MODIS</code> is chosen, the watermask is based on MODIS
+     *                       above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
+     *                       south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
+     *                       on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     * @param superSamplingX Each pixel of the input is super-sampled in x-direction by using this factor.
+     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       the - lower resolution - source image in x direction. Only values in [1..M] are
+     *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
+     * @param superSamplingY Each pixel of the input is super-sampled in y-direction by using this factor.
+     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       the - lower resolution - source image in y-direction. Only values in [1..M] are
+     *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
      *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
@@ -115,6 +121,86 @@ public class WatermaskClassifier {
         aboveSixtyNorthImage = createBorderImage(northDescriptor);
 //        ImageDescriptor southDescriptor = getSouthDescriptor(auxdataDir);
 //        belowSixtySouthImage = createBorderImage(southDescriptor);
+    }
+
+    /**
+     * Classifies the given geo-position as water or land.
+     *
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     *
+     * @return true, if the geo-position is over water, false otherwise.
+     *
+     * @throws java.io.IOException If some IO-error occurs reading the source file.
+     */
+    public boolean isWater(float lat, float lon) throws IOException {
+        final int waterMaskSample = getWaterMaskSample(lat, lon);
+        return waterMaskSample == WATER_VALUE;
+    }
+
+    /**
+     * Returns the sample value at the given geo-position, regardless of the source resolution.
+     *
+     * @param lat The latitude value.
+     * @param lon The longitude value.
+     *
+     * @return {@link WatermaskClassifier#LAND_VALUE} if the given position is over land,
+     *         {@link WatermaskClassifier#WATER_VALUE} if it is over water, {@link WatermaskClassifier#INVALID_VALUE} if
+     *         no definite statement can be made about the position.
+     */
+    public int getWaterMaskSample(float lat, float lon) {
+        double tempLon = lon + 180.0;
+        if (tempLon >= 360) {
+            tempLon %= 360;
+        }
+
+        float normLat = Math.abs(lat - 90.0f);
+
+        if (tempLon < 0.0 || tempLon > 360.0 || normLat < 0.0 || normLat > 180.0) {
+            return INVALID_VALUE;
+        }
+
+        if (normLat < 150.0f && normLat > 30.0f) {
+            return getSample(normLat, tempLon, 180.0, 360.0, 0.0, centerImage);
+        } else if (normLat <= 30.0f) {
+            return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
+        } else if (normLat >= 150.0f) {
+            return WATER_VALUE;
+//            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
+        }
+
+        throw new IllegalStateException("Cannot come here");
+    }
+
+    /**
+     * Returns the fraction of water for the given region, considering the super-sampling factors given at
+     * construction time.
+     *
+     * @param geoCoding The geo coding of the product the watermask fraction shall be computed for.
+     * @param pixelPosX The pixel X position the watermask fraction shall be computed for.
+     * @param pixelPosY The pixel Y position the watermask fraction shall be computed for.
+     *
+     * @return The fraction of water in the given geographic rectangle, in the range [0..100].
+     */
+    public byte getWaterMaskFraction(GeoCoding geoCoding, int pixelPosX, int pixelPosY) {
+        final GeoPos geoPos = new GeoPos();
+        final PixelPos currentPos = new PixelPos();
+        float valueSum = 0;
+        int invalidCount = 0;
+        for (float samplingStepY : samplingStepsY) {
+            currentPos.y = pixelPosY + samplingStepY;
+            for (float samplingStepX : samplingStepsX) {
+                currentPos.x = pixelPosX + samplingStepX;
+                geoCoding.getGeoPos(currentPos, geoPos);
+                int waterMaskSample = getWaterMaskSample(geoPos);
+                if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
+                    valueSum += waterMaskSample;
+                } else {
+                    invalidCount++;
+                }
+            }
+        }
+        return computeAverage(valueSum, invalidCount, numSuperSamples);
     }
 
     private SRTMOpImage createCenterImage(int resolution, File auxdataDir) throws IOException {
@@ -154,11 +240,10 @@ public class WatermaskClassifier {
     }
 
     private File installAuxdata() throws IOException {
-        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
         String auxdataSrcPath = "auxdata/images";
-
-        String relativeDestPath = ".beam/" + "beam-watermask-operator/auxdata_" + AUXDATA_VERSION + "/images";
+        final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
         File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
+        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
 
         ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
         resourceInstaller.install(".*", ProgressMonitor.NULL);
@@ -166,86 +251,8 @@ public class WatermaskClassifier {
         return auxdataTargetDir;
     }
 
-    /**
-     * Classifies the given geo-position as water or land.
-     *
-     * @param lat The latitude value.
-     * @param lon The longitude value.
-     *
-     * @return true, if the geo-position is over water, false otherwise.
-     *
-     * @throws java.io.IOException If some IO-error occurs reading the source file.
-     */
-    public boolean isWater(float lat, float lon) throws IOException {
-        final int waterMaskSample = getWaterMaskSample(lat, lon);
-        return waterMaskSample == WATER_VALUE;
-    }
-
-    /**
-     * Returns the sample value at the given geo-position, regardless of the source resolution.
-     *
-     * @param lat The latitude value.
-     * @param lon The longitude value.
-     *
-     * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
-     *         about the position.
-     */
-    public int getWaterMaskSample(float lat, float lon) {
-        double tempLon = lon + 180.0;
-        if (tempLon >= 360) {
-            tempLon %= 360;
-        }
-
-        float normLat = Math.abs(lat - 90.0f);
-
-        if (tempLon < 0.0 || tempLon > 360.0 || normLat < 0.0 || normLat > 180.0) {
-            return INVALID_VALUE;
-        }
-
-        if (normLat < 150.0f && normLat > 30.0f) {
-            return getSample(normLat, tempLon, 180.0, 360.0, 0.0, centerImage);
-        } else if (normLat <= 30.0f) {
-            return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
-        } else if (normLat >= 150.0f) {
-            return WATER_VALUE;
-//            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
-        }
-
-        throw new IllegalStateException("Cannot come here");
-    }
-
-    /**
-     * Returns the fraction of water for the given region, considering a subsampling factor.
-     *
-     * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPosX          The pixel X position the watermask fraction shall be computed for.
-     * @param pixelPosY          The pixel Y position the watermask fraction shall be computed for.
-     *
-     * @return The fraction of water in the given geographic rectangle, in the range [0..100].
-     */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, int pixelPosX, int pixelPosY) {
-        final GeoPos geoPos = new GeoPos();
-        final PixelPos currentPos = new PixelPos();
-        float valueSum = 0;
-        int invalidCount = 0;
-        for (float samplingStepY : samplingStepsY) {
-            currentPos.y = pixelPosY + samplingStepY;
-            for (float samplingStepX : samplingStepsX) {
-                currentPos.x = pixelPosX + samplingStepX;
-                geoCoding.getGeoPos(currentPos, geoPos);
-                int waterMaskSample = getWaterMaskSample(geoPos);
-                if (waterMaskSample != WatermaskClassifier.INVALID_VALUE) {
-                    valueSum += waterMaskSample;
-                } else {
-                    invalidCount++;
-                }
-            }
-        }
-        return computeAverage(valueSum, invalidCount, numSuperSamples);
-    }
-
-
-    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
+    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset,
+                                 OpImage image) {
         final double pixelSizeX = lonWidth / image.getWidth();
         final double pixelSizeY = latHeight / image.getHeight();
         final int x = (int) Math.round(lon / pixelSizeX);
