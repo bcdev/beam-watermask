@@ -92,6 +92,7 @@ class ShapeFileRasterizer {
     public static void main(String[] args) throws IOException {
         final File resourceDir = new File(args[0]);
         final File targetDir = new File(args[1]);
+        targetDir.mkdirs();
         int sideLength = WatermaskUtils.computeSideLength(Integer.parseInt(args[2]));
         boolean createImage = false;
         if (args.length == 4) {
