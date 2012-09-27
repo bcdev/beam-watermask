@@ -57,7 +57,7 @@ public class WatermaskClassifier {
     static final int MODIS_TILE_WIDTH = 640;
     static final int MODIS_TILE_HEIGHT = 540;
 
-    static final String AUXDATA_VERSION = "v1.2";
+    static final String AUXDATA_VERSION = "v1.3";
 
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
