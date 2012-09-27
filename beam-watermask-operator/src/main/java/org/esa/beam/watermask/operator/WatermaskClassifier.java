@@ -87,13 +87,21 @@ public class WatermaskClassifier {
      * for the given geo-position is returned.
      * If the fill algorithm is not performed a value indicating invalid is returned.
      *
-     * @param resolution The resolution specifying on source data is to be queried. Needs to be
-     *                   <code>RESOLUTION_50</code> or <code>RESOLUTION_150</code>.
-     * @param mode       The mode the classifier shall run in. Must be one of <code>MODE_MODIS</code> or
-     *                   <code>MODE_GC</code>. If <code>MODE_MODIS</code> is chosen, the watermask is based on MODIS
-     *                   above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
-     *                   south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
-     *                   on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     * @param resolution     The resolution specifying on source data is to be queried. Needs to be
+     *                       <code>RESOLUTION_50</code> or <code>RESOLUTION_150</code>.
+     * @param mode           The mode the classifier shall run in. Must be one of <code>MODE_MODIS</code> or
+     *                       <code>MODE_GC</code>. If <code>MODE_MODIS</code> is chosen, the watermask is based on MODIS
+     *                       above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
+     *                       south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
+     *                       on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     * @param superSamplingX Each pixel of the input is super-sampled in x-direction by using this factor.
+     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       the - lower resolution - source image in x direction. Only values in [1..M] are
+     *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
+     * @param superSamplingY Each pixel of the input is super-sampled in y-direction by using this factor.
+     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       the - lower resolution - source image in y-direction. Only values in [1..M] are
+     *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
      *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
@@ -184,8 +192,9 @@ public class WatermaskClassifier {
      * @param lat The latitude value.
      * @param lon The longitude value.
      *
-     * @return 0 if the given position is over land, 1 if it is over water, 2 if no definite statement can be made
-     *         about the position.
+     * @return {@link WatermaskClassifier#LAND_VALUE} if the given position is over land,
+     *         {@link WatermaskClassifier#WATER_VALUE} if it is over water, {@link WatermaskClassifier#INVALID_VALUE} if
+     *         no definite statement can be made about the position.
      */
     public int getWaterMaskSample(float lat, float lon) {
         double tempLon = lon + 180.0;
@@ -212,10 +221,11 @@ public class WatermaskClassifier {
     }
 
     /**
-     * Returns the fraction of water for the given region, considering a subsampling factor.
+     * Returns the fraction of water for the given region, considering the super-sampling factors given at
+     * construction time.
      *
-     * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
+     * @param geoCoding The geo coding of the product the watermask fraction shall be computed for.
+     * @param pixelPos  The pixel position the watermask fraction shall be computed for.
      *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
      */
@@ -225,7 +235,7 @@ public class WatermaskClassifier {
         float valueSum = 0;
         int invalidCount = 0;
         // just use the index of the pixel
-        // the fraction (center) of a pixel is considered by the super sampling
+        // the fraction (and also the center) of a pixel is considered by the super sampling
         int pixelPosY = (int) Math.floor(pixelPos.y);
         int pixelPosX = (int) Math.floor(pixelPos.x);
         for (float samplingStepY : samplingStepsY) {
@@ -292,7 +302,8 @@ public class WatermaskClassifier {
         return auxdataTargetDir;
     }
 
-    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
+    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset,
+                                 OpImage image) {
         final double pixelSizeX = lonWidth / image.getWidth();
         final double pixelSizeY = latHeight / image.getHeight();
         final int x = (int) Math.round(lon / pixelSizeX);
