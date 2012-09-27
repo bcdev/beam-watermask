@@ -57,6 +57,8 @@ public class WatermaskClassifier {
     static final int MODIS_TILE_WIDTH = 640;
     static final int MODIS_TILE_HEIGHT = 540;
 
+    static final String AUXDATA_VERSION = "v1.2";
+
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
     private float[] samplingStepsX;
@@ -152,7 +154,7 @@ public class WatermaskClassifier {
     }
 
     private File installAuxdata() throws IOException {
-        String auxdataSrcPath = "auxdata/images";
+        String auxdataSrcPath = "auxdata_"+ AUXDATA_VERSION + "/images";
         final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
         File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
         URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
