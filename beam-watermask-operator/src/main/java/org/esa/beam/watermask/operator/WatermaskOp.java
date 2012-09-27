@@ -136,7 +136,7 @@ public class WatermaskOp extends Operator {
     private void initTargetProduct() {
         targetProduct = new Product("LW-Mask", ProductData.TYPESTRING_UINT8, sourceProduct.getSceneRasterWidth(),
                                     sourceProduct.getSceneRasterHeight());
-        final Band band = targetProduct.addBand("land_water_fraction", ProductData.TYPE_FLOAT32);
+        final Band band = targetProduct.addBand("land_water_fraction", ProductData.TYPE_INT8);
         band.setNoDataValue(WatermaskClassifier.INVALID_VALUE);
         band.setNoDataValueUsed(true);
         ProductUtils.copyGeoCoding(sourceProduct, targetProduct);
