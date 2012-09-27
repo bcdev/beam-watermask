@@ -154,10 +154,11 @@ public class WatermaskClassifier {
     }
 
     private File installAuxdata() throws IOException {
-        String auxdataSrcPath = "auxdata_"+ AUXDATA_VERSION + "/images";
-        final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
-        File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
         URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
+        String auxdataSrcPath = "auxdata/images";
+
+        String relativeDestPath = ".beam/" + "beam-watermask-operator/auxdata_" + AUXDATA_VERSION + "/images";
+        File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
 
         ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
         resourceInstaller.install(".*", ProgressMonitor.NULL);
