@@ -57,8 +57,6 @@ public class WatermaskClassifier {
     static final int MODIS_TILE_WIDTH = 640;
     static final int MODIS_TILE_HEIGHT = 540;
 
-    static final String AUXDATA_VERSION = "v1.2";
-
     private final SRTMOpImage centerImage;
     private final PNGSourceImage aboveSixtyNorthImage;
     private float[] samplingStepsX;
@@ -154,11 +152,10 @@ public class WatermaskClassifier {
     }
 
     private File installAuxdata() throws IOException {
-        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
         String auxdataSrcPath = "auxdata/images";
-
-        String relativeDestPath = ".beam/" + "beam-watermask-operator/auxdata_" + AUXDATA_VERSION + "/images";
+        final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
         File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
+        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
 
         ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
         resourceInstaller.install(".*", ProgressMonitor.NULL);
@@ -218,16 +215,19 @@ public class WatermaskClassifier {
      * Returns the fraction of water for the given region, considering a subsampling factor.
      *
      * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPosX          The pixel X position the watermask fraction shall be computed for.
-     * @param pixelPosY          The pixel Y position the watermask fraction shall be computed for.
+     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
      *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
      */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, int pixelPosX, int pixelPosY) {
+    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos) {
         final GeoPos geoPos = new GeoPos();
         final PixelPos currentPos = new PixelPos();
         float valueSum = 0;
         int invalidCount = 0;
+        // just use the index of the pixel
+        // the fraction (center) of a pixel is considered by the super sampling
+        int pixelPosY = (int) Math.floor(pixelPos.y);
+        int pixelPosX = (int) Math.floor(pixelPos.x);
         for (float samplingStepY : samplingStepsY) {
             currentPos.y = pixelPosY + samplingStepY;
             for (float samplingStepX : samplingStepsX) {
@@ -244,6 +244,53 @@ public class WatermaskClassifier {
         return computeAverage(valueSum, invalidCount, numSuperSamples);
     }
 
+    private SRTMOpImage createCenterImage(int resolution, File auxdataDir) throws IOException {
+        int tileSize = WatermaskUtils.computeSideLength(resolution);
+
+        int width = tileSize * 360;
+        int height = tileSize * 180;
+        final Properties properties = new Properties();
+        properties.setProperty("width", String.valueOf(width));
+        properties.setProperty("height", String.valueOf(height));
+        properties.setProperty("tileWidth", String.valueOf(tileSize));
+        properties.setProperty("tileHeight", String.valueOf(tileSize));
+        final URL imageProperties = getClass().getResource("image.properties");
+        properties.load(imageProperties.openStream());
+
+        File zipFile = new File(auxdataDir, resolution + "m.zip");
+        return SRTMOpImage.create(properties, zipFile);
+    }
+
+    private PNGSourceImage createBorderImage(ImageDescriptor descriptor) throws IOException {
+        int width = descriptor.getImageWidth();
+        int tileWidth = descriptor.getTileWidth();
+        int height = descriptor.getImageHeight();
+        int tileHeight = descriptor.getTileHeight();
+        final Properties properties = new Properties();
+        properties.setProperty("width", String.valueOf(width));
+        properties.setProperty("height", String.valueOf(height));
+        properties.setProperty("tileWidth", String.valueOf(tileWidth));
+        properties.setProperty("tileHeight", String.valueOf(tileHeight));
+        final URL imageProperties = getClass().getResource("image.properties");
+        properties.load(imageProperties.openStream());
+
+        final File auxdataDir = descriptor.getAuxdataDir();
+        final String zipFileName = descriptor.getZipFileName();
+        File zipFile = new File(auxdataDir, zipFileName);
+        return PNGSourceImage.create(properties, zipFile);
+    }
+
+    private File installAuxdata() throws IOException {
+        String auxdataSrcPath = "auxdata/images";
+        final String relativeDestPath = ".beam/" + "beam-watermask-operator" + "/" + auxdataSrcPath;
+        File auxdataTargetDir = new File(SystemUtils.getUserHomeDir(), relativeDestPath);
+        URL sourceUrl = ResourceInstaller.getSourceUrl(this.getClass());
+
+        ResourceInstaller resourceInstaller = new ResourceInstaller(sourceUrl, auxdataSrcPath, auxdataTargetDir);
+        resourceInstaller.install(".*", ProgressMonitor.NULL);
+
+        return auxdataTargetDir;
+    }
 
     private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset, OpImage image) {
         final double pixelSizeX = lonWidth / image.getWidth();
