@@ -19,7 +19,6 @@ package org.esa.beam.watermask.operator;
 import com.bc.ceres.core.ProgressMonitor;
 import org.esa.beam.framework.datamodel.Band;
 import org.esa.beam.framework.datamodel.GeoCoding;
-import org.esa.beam.framework.datamodel.PixelPos;
 import org.esa.beam.framework.datamodel.Product;
 import org.esa.beam.framework.datamodel.ProductData;
 import org.esa.beam.framework.gpf.Operator;
@@ -98,13 +97,10 @@ public class WatermaskOp extends Operator {
     public void computeTile(Band targetBand, Tile targetTile, ProgressMonitor pm) throws OperatorException {
         final Rectangle rectangle = targetTile.getRectangle();
         try {
-            final PixelPos pixelPos = new PixelPos();
             final GeoCoding geoCoding = sourceProduct.getGeoCoding();
             for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                 for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
-                    pixelPos.x = x;
-                    pixelPos.y = y;
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, pixelPos);
+                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, x, y);
                     targetTile.setSample(x, y, waterFraction);
                 }
             }

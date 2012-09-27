@@ -215,19 +215,16 @@ public class WatermaskClassifier {
      * Returns the fraction of water for the given region, considering a subsampling factor.
      *
      * @param geoCoding          The geo coding of the product the watermask fraction shall be computed for.
-     * @param pixelPos           The pixel position the watermask fraction shall be computed for.
+     * @param pixelPosX          The pixel X position the watermask fraction shall be computed for.
+     * @param pixelPosY          The pixel Y position the watermask fraction shall be computed for.
      *
      * @return The fraction of water in the given geographic rectangle, in the range [0..100].
      */
-    public byte getWaterMaskFraction(GeoCoding geoCoding, PixelPos pixelPos) {
+    public byte getWaterMaskFraction(GeoCoding geoCoding, int pixelPosX, int pixelPosY) {
         final GeoPos geoPos = new GeoPos();
         final PixelPos currentPos = new PixelPos();
         float valueSum = 0;
         int invalidCount = 0;
-        // just use the index of the pixel
-        // the fraction (center) of a pixel is considered by the super sampling
-        int pixelPosY = (int) Math.floor(pixelPos.y);
-        int pixelPosX = (int) Math.floor(pixelPos.x);
         for (float samplingStepY : samplingStepsY) {
             currentPos.y = pixelPosY + samplingStepY;
             for (float samplingStepX : samplingStepsX) {
