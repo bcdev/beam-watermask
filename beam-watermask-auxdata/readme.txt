@@ -1,5 +1,6 @@
 This module provides the auxiliary data for the BEAM Watermask Operator module.
-If this module is checked out from VCS for the first time it is empty.
+If this module is checked out from VCS (Version Control System) for the first
+time it is empty.
 Normally this auxdata-artifact is already deployed to the BC maven repository.
 So no action has to be undertaken.
 See also the readme.txt in the beam-watermask-operator module.
