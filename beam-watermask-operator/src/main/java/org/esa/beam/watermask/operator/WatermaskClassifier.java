@@ -258,8 +258,8 @@ public class WatermaskClassifier {
                                  OpImage image) {
         final double pixelSizeX = lonWidth / image.getWidth();
         final double pixelSizeY = latHeight / image.getHeight();
-        final int x = (int) Math.round(lon / pixelSizeX);
-        final int y = (int) (Math.round((lat - latOffset) / pixelSizeY));
+        final int x = (int) Math.floor(lon / pixelSizeX);
+        final int y = (int) (Math.floor((lat - latOffset) / pixelSizeY));
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         if (tile == null) {
             return INVALID_VALUE;

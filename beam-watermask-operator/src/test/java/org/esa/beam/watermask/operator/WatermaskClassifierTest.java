@@ -49,9 +49,9 @@ public class WatermaskClassifierTest {
     @Test
     public void testGetWatermaskSampleAboveSixtyGC() throws Exception {
         assertEquals(WatermaskClassifier.WATER_VALUE, gcClassifier.getWaterMaskSample(70.860277f, 29.205115f));
-        assertEquals(WatermaskClassifier.LAND_VALUE, gcClassifier.getWaterMaskSample(70.853971f, 29.210610f));
+        assertEquals(WatermaskClassifier.WATER_VALUE, gcClassifier.getWaterMaskSample(70.853971f, 29.210610f));
 
-        assertEquals(WatermaskClassifier.WATER_VALUE, gcClassifier.getWaterMaskSample(72.791664f, 105.28333f));
+        assertEquals(WatermaskClassifier.LAND_VALUE, gcClassifier.getWaterMaskSample(72.791664f, 105.28333f));
         assertEquals(WatermaskClassifier.LAND_VALUE,  gcClassifier.getWaterMaskSample(72.794586f, 105.27786f));
 
         assertEquals(WatermaskClassifier.WATER_VALUE, gcClassifier.getWaterMaskSample(80.19444f, 25.963888f));

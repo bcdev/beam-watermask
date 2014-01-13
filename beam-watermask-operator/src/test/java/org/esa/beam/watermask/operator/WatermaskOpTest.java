@@ -57,19 +57,17 @@ public class WatermaskOpTest {
         parameters.put("subSamplingFactorX", 10);
         parameters.put("subSamplingFactorY", 10);
         Product lwProduct = GPF.createProduct(OperatorSpi.getOperatorAlias(WatermaskOp.class), parameters, sourceProduct);
-        actualTest(lwProduct);
+        Band band = lwProduct.getBand("land_water_fraction");
+        byte sample = (byte) band.getSourceImage().getData().getSample(0, 0, 0);
+        assertEquals(25, sample);
     }
 
     @Test
     public void testWithoutSubsampling() throws Exception {
         Product lwProduct = GPF.createProduct(OperatorSpi.getOperatorAlias(WatermaskOp.class), parameters, sourceProduct);
-        actualTest(lwProduct);
-    }
-
-    private void actualTest(Product lwProduct) {
         Band band = lwProduct.getBand("land_water_fraction");
         byte sample = (byte) band.getSourceImage().getData().getSample(0, 0, 0);
-        assertEquals(100, sample);
+        assertEquals(0, sample);
     }
 
     private static class MyGeoCoding implements GeoCoding {
