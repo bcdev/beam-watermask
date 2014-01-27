@@ -54,7 +54,7 @@ import java.text.MessageFormat;
                   internal = false,
                   authors = "Thomas Storm",
                   copyright = "(c) 2011 by Brockmann Consult",
-                  description = "Operator creating a target product with a single band containing a land/water-mask," +
+                  description = "Operator creating a target product with a single band containing a land/water-mask." +
                                 " which is based on SRTM-shapefiles (between 60° north and 60° south) and the " +
                                 "GlobCover world map (above 60° north) and therefore very accurate.")
 public class WatermaskOp extends Operator {
@@ -64,7 +64,7 @@ public class WatermaskOp extends Operator {
     private Product sourceProduct;
 
     @Parameter(description = "Specifies on which resolution the water mask shall be based.", unit = "m/pixel",
-               label = "Resolution", defaultValue = "50", valueSet = {"50", "150"})
+               label = "Resolution", defaultValue = "1000", valueSet = {"50", "150", "1000"})
     private int resolution;
 
     @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask in " +
@@ -110,10 +110,8 @@ public class WatermaskOp extends Operator {
     }
 
     private void validateParameter() {
-        if (resolution != WatermaskClassifier.RESOLUTION_50 && resolution != WatermaskClassifier.RESOLUTION_150) {
-            throw new OperatorException(String.format("Resolution needs to be either %d or %d.",
-                                                      WatermaskClassifier.RESOLUTION_50,
-                                                      WatermaskClassifier.RESOLUTION_150));
+        if (resolution != 50 && resolution != 150 && resolution != 1000) {
+            throw new OperatorException(String.format("Resolution needs to be either %d, %d or, %d.", 50, 150, 1000));
         }
         if (subSamplingFactorX < 1) {
             String msgPattern = "Subsampling factor needs to be greater than or equal to 1; was: ''{0}''.";

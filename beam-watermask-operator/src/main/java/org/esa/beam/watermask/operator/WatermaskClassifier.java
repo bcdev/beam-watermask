@@ -24,8 +24,12 @@ import org.esa.beam.util.ResourceInstaller;
 import org.esa.beam.util.SystemUtils;
 import org.esa.beam.watermask.util.ImageDescriptor;
 import org.esa.beam.watermask.util.ImageDescriptorBuilder;
+import org.geotools.resources.image.ImageUtilities;
 
+import javax.imageio.ImageIO;
+import javax.media.jai.NullOpImage;
 import javax.media.jai.OpImage;
+import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
@@ -42,41 +46,22 @@ public class WatermaskClassifier {
     public static final int WATER_VALUE = 1;
     public static final int INVALID_VALUE = 127;
     public static final int LAND_VALUE = 0;
-    public static final int RESOLUTION_50 = 50;
-    public static final int RESOLUTION_150 = 150;
-    public static final int MODE_MODIS = 1;
-    public static final int MODE_GC = MODE_MODIS << 1;
 
     static final int GC_TILE_WIDTH = 576;
     static final int GC_TILE_HEIGHT = 491;
     static final int GC_IMAGE_WIDTH = 129600;
     static final int GC_IMAGE_HEIGHT = 10800;
 
-    static final int MODIS_IMAGE_WIDTH = 155520;
-    static final int MODIS_IMAGE_HEIGHT = 12960;
-    static final int MODIS_TILE_WIDTH = 640;
-    static final int MODIS_TILE_HEIGHT = 540;
-
     static final String AUXDATA_VERSION = "v1.3";
 
-    private final SRTMOpImage centerImage;
-    private final PNGSourceImage aboveSixtyNorthImage;
+    private final ImageWrapper imageSource;
     private float[] samplingStepsX;
     private float[] samplingStepsY;
     private final int numSuperSamples;
-    //    private final PNGSourceImage belowSixtySouthImage;
 
 
     public WatermaskClassifier(int resolution) throws IOException {
-        this(resolution, MODE_GC, 1, 1);
-    }
-
-    public WatermaskClassifier(int resolution, int mode) throws IOException {
-        this(resolution, mode, 1, 1);
-    }
-
-    public WatermaskClassifier(int resolution, int superSamplingX, int superSamplingY) throws IOException {
-        this(resolution, MODE_GC, superSamplingX, superSamplingY);
+        this(resolution, 1, 1);
     }
 
     /**
@@ -89,40 +74,39 @@ public class WatermaskClassifier {
      * for the given geo-position is returned.
      * If the fill algorithm is not performed a value indicating invalid is returned.
      *
+     *
      * @param resolution     The resolution specifying on source data is to be queried. Needs to be
-     *                       <code>RESOLUTION_50</code> or <code>RESOLUTION_150</code>.
-     * @param mode           The mode the classifier shall run in. Must be one of <code>MODE_MODIS</code> or
-     *                       <code>MODE_GC</code>. If <code>MODE_MODIS</code> is chosen, the watermask is based on MODIS
-     *                       above 60° north, on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60°
-     *                       south. If <code>MODE_GC</code> is chosen, the watermask is based on GlobCover above 60° north,
-     *                       on SRTM-shapefiles between 60° north and 60° south, and on MODIS below 60° south.
+     *                       50, 150, or 1000.
      * @param superSamplingX Each pixel of the input is super-sampled in x-direction by using this factor.
-     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       Meaningful values lie between the maximum resolution water mask and
      *                       the - lower resolution - source image in x direction. Only values in [1..M] are
      *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
      * @param superSamplingY Each pixel of the input is super-sampled in y-direction by using this factor.
-     *                       A meaningful value would be the factor between the high resolution water mask and
+     *                       Meaningful values lie between the maximum resolution water mask and
      *                       the - lower resolution - source image in y-direction. Only values in [1..M] are
      *                       sensible, with M = (source image resolution in m/pixel) / (50 m/pixel)
      *
      * @throws java.io.IOException If some IO-error occurs creating the sources.
      */
-    public WatermaskClassifier(int resolution, int mode, int superSamplingX, int superSamplingY) throws IOException {
-        if (resolution != RESOLUTION_50 && resolution != RESOLUTION_150) {
+    public WatermaskClassifier(int resolution, int superSamplingX, int superSamplingY) throws IOException {
+        if (!isValidResolution(resolution)) {
             throw new IllegalArgumentException(
-                    MessageFormat.format("Resolution needs to be {0} or {1}.", RESOLUTION_50, RESOLUTION_150));
+                    MessageFormat.format("Resolution needs to be {0}, {1}, or {2}.", 50, 150, 1000));
         }
 
         this.numSuperSamples = superSamplingX * superSamplingY;
         samplingStepsX = getSuperSamplingSteps(superSamplingX);
         samplingStepsY = getSuperSamplingSteps(superSamplingY);
 
-        final File auxdataDir = installAuxdata();
-        centerImage = createCenterImage(resolution, auxdataDir);
-        ImageDescriptor northDescriptor = getNorthDescriptor(mode, auxdataDir);
-        aboveSixtyNorthImage = createBorderImage(northDescriptor);
-//        ImageDescriptor southDescriptor = getSouthDescriptor(auxdataDir);
-//        belowSixtySouthImage = createBorderImage(southDescriptor);
+        if (resolution == 50 || resolution == 150) {
+            File auxdataDir = installAuxdata();
+            SRTMOpImage centerImage = createCenterImage(resolution, auxdataDir);
+            ImageDescriptor northDescriptor = getNorthDescriptor(auxdataDir);
+            PNGSourceImage northImage = createBorderImage(northDescriptor);
+            imageSource = new HighResImageWrapper(centerImage, northImage);
+        } else {
+            imageSource = new LowResImageWrapper();
+        }
     }
 
     /**
@@ -145,33 +129,33 @@ public class WatermaskClassifier {
      *
      * @param lat The latitude value.
      * @param lon The longitude value.
-     *
      * @return {@link WatermaskClassifier#LAND_VALUE} if the given position is over land,
-     *         {@link WatermaskClassifier#WATER_VALUE} if it is over water, {@link WatermaskClassifier#INVALID_VALUE} if
-     *         no definite statement can be made about the position.
+     * {@link WatermaskClassifier#WATER_VALUE} if it is over water, {@link WatermaskClassifier#INVALID_VALUE} if
+     * no definite statement can be made about the position.
      */
     public int getWaterMaskSample(float lat, float lon) {
-        double tempLon = lon + 180.0;
-        if (tempLon >= 360) {
-            tempLon %= 360;
+        double normLon = lon + 180.0;
+        if (normLon >= 360) {
+            normLon %= 360;
         }
 
         float normLat = Math.abs(lat - 90.0f);
 
-        if (tempLon < 0.0 || tempLon > 360.0 || normLat < 0.0 || normLat > 180.0) {
+        if (normLon < 0.0 || normLon > 360.0 || normLat < 0.0 || normLat > 180.0) {
             return INVALID_VALUE;
         }
 
-        if (normLat < 150.0f && normLat > 30.0f) {
-            return getSample(normLat, tempLon, 180.0, 360.0, 0.0, centerImage);
-        } else if (normLat <= 30.0f) {
-            return getSample(normLat, tempLon, 30.0, 360.0, 0.0, aboveSixtyNorthImage);
-        } else if (normLat >= 150.0f) {
-            return WATER_VALUE;
-//            return getSample(normLat, tempLon, 30.0, 360.0, 150.0, belowSixtySouthImage);
-        }
+        return getSample(normLat, normLon, imageSource.getLatHeight(normLat), imageSource.getLonWidth(), imageSource.getImage(normLat));
 
-        throw new IllegalStateException("Cannot come here");
+//        if (normLat < 150.0f && normLat > 30.0f) {
+//            return getSample(normLat, normLon, 180.0, 360.0, centerImage);
+//        } else if (normLat <= 30.0f) {
+//            return getSample(normLat, normLon, 30.0, 360.0, aboveSixtyNorthImage);
+//        } else if (normLat >= 150.0f) {
+//            return WATER_VALUE;
+//        }
+
+//        throw new IllegalStateException("Cannot come here");
     }
 
     /**
@@ -203,6 +187,10 @@ public class WatermaskClassifier {
             }
         }
         return computeAverage(valueSum, invalidCount, numSuperSamples);
+    }
+
+    public static boolean isValidResolution(int resolution) {
+        return resolution == 50 || resolution == 150 || resolution == 1000;
     }
 
     private SRTMOpImage createCenterImage(int resolution, File auxdataDir) throws IOException {
@@ -254,12 +242,14 @@ public class WatermaskClassifier {
         return auxdataTargetDir;
     }
 
-    private static int getSample(double lat, double lon, double latHeight, double lonWidth, double latOffset,
-                                 OpImage image) {
+    private static int getSample(double lat, double lon, double latHeight, double lonWidth, OpImage image) {
+        if (image == null || latHeight == HighResImageWrapper.INVALID_LAT_HEIGHT) {
+            return INVALID_VALUE;
+        }
         final double pixelSizeX = lonWidth / image.getWidth();
         final double pixelSizeY = latHeight / image.getHeight();
         final int x = (int) Math.floor(lon / pixelSizeX);
-        final int y = (int) (Math.floor((lat - latOffset) / pixelSizeY));
+        final int y = (int) (Math.floor(lat / pixelSizeY));
         final Raster tile = image.getTile(image.XToTileX(x), image.YToTileY(y));
         if (tile == null) {
             return INVALID_VALUE;
@@ -299,32 +289,8 @@ public class WatermaskClassifier {
         return waterMaskSample;
     }
 
-    private static ImageDescriptor getSouthDescriptor(File auxdataDir) {
+    private static ImageDescriptor getNorthDescriptor(File auxdataDir) {
         return new ImageDescriptorBuilder()
-                .width(MODIS_IMAGE_WIDTH)
-                .height(MODIS_IMAGE_HEIGHT)
-                .tileWidth(MODIS_TILE_WIDTH)
-                .tileHeight(MODIS_TILE_HEIGHT)
-                .auxdataDir(auxdataDir)
-                .zipFileName("MODIS_south_water_mask.zip")
-                .build();
-    }
-
-    private static ImageDescriptor getNorthDescriptor(int mode, File auxdataDir) {
-        ImageDescriptor northDescriptor;
-        switch (mode) {
-            case MODE_MODIS:
-                northDescriptor = new ImageDescriptorBuilder()
-                        .width(MODIS_IMAGE_WIDTH)
-                        .height(MODIS_IMAGE_HEIGHT)
-                        .tileWidth(MODIS_TILE_WIDTH)
-                        .tileHeight(MODIS_TILE_HEIGHT)
-                        .auxdataDir(auxdataDir)
-                        .zipFileName("MODIS_north_water_mask.zip")
-                        .build();
-                break;
-            case MODE_GC:
-                northDescriptor = new ImageDescriptorBuilder()
                         .width(GC_IMAGE_WIDTH)
                         .height(GC_IMAGE_HEIGHT)
                         .tileWidth(GC_TILE_WIDTH)
@@ -332,12 +298,84 @@ public class WatermaskClassifier {
                         .auxdataDir(auxdataDir)
                         .zipFileName("GC_water_mask.zip")
                         .build();
-                break;
-            default:
-                String msg = String.format("Unknown mode '%d'. Known modes are {%d, %d}", mode, MODE_MODIS, MODE_GC);
-                throw new IllegalArgumentException(msg);
+    }
+
+    private static interface ImageWrapper {
+
+        float getLonWidth();
+        float getLatHeight(float lat);
+        OpImage getImage(float lat);
+
+    }
+
+    private static class HighResImageWrapper implements ImageWrapper {
+
+
+        private static final float INVALID_LAT_HEIGHT = -1.0F;
+        private final OpImage centralImage;
+        private final OpImage northImage;
+
+        private HighResImageWrapper(OpImage centralImage, OpImage northImage) {
+            this.centralImage = centralImage;
+            this.northImage = northImage;
         }
-        return northDescriptor;
+
+        @Override
+        public float getLonWidth() {
+                return 360.0F;
+        }
+
+        @Override
+        public float getLatHeight(float latitude) {
+            if (latitude < 150.0 && latitude > 30.0) {
+                return 180.0F;
+            } else if (latitude <= 30.0) {
+                return 30.0F;
+            }
+            return INVALID_LAT_HEIGHT;
+        }
+
+        @Override
+        public OpImage getImage(float latitude) {
+            if (latitude < 150.0 && latitude > 30.0) {
+                return centralImage;
+            } else if (latitude <= 30.0) {
+                return northImage;
+            }
+            return null;
+        }
+    }
+
+    private static class LowResImageWrapper implements ImageWrapper {
+
+        OpImage image;
+
+        @Override
+        public float getLonWidth() {
+                return 360.0F;
+        }
+
+        @Override
+        public float getLatHeight(float latitude) {
+            return 180.0F;
+        }
+
+        @Override
+        public OpImage getImage(float latitude) {
+            if (image != null) {
+                return image;
+            }
+            final URL url = getClass().getResource("water.png");
+            BufferedImage waterImage = null;
+            try {
+                waterImage = ImageIO.read(url);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            NullOpImage opImage = new NullOpImage(waterImage, ImageUtilities.getImageLayout(waterImage), null, OpImage.OP_COMPUTE_BOUND);
+            image = opImage;
+            return opImage;
+        }
     }
 
 }
