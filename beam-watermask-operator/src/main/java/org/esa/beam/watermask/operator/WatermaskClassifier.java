@@ -54,7 +54,7 @@ public class WatermaskClassifier {
 
     static final String AUXDATA_VERSION = "v1.3";
 
-    private final ImageWrapper imageSource;
+    private final ImageSource imageSource;
     private float[] samplingStepsX;
     private float[] samplingStepsY;
     private final int numSuperSamples;
@@ -103,9 +103,9 @@ public class WatermaskClassifier {
             SRTMOpImage centerImage = createCenterImage(resolution, auxdataDir);
             ImageDescriptor northDescriptor = getNorthDescriptor(auxdataDir);
             PNGSourceImage northImage = createBorderImage(northDescriptor);
-            imageSource = new HighResImageWrapper(centerImage, northImage);
+            imageSource = new HighResImageSource(centerImage, northImage);
         } else {
-            imageSource = new LowResImageWrapper();
+            imageSource = new LowResImageSource();
         }
     }
 
@@ -146,16 +146,6 @@ public class WatermaskClassifier {
         }
 
         return getSample(normLat, normLon, imageSource.getLatHeight(normLat), imageSource.getLonWidth(), imageSource.getImage(normLat));
-
-//        if (normLat < 150.0f && normLat > 30.0f) {
-//            return getSample(normLat, normLon, 180.0, 360.0, centerImage);
-//        } else if (normLat <= 30.0f) {
-//            return getSample(normLat, normLon, 30.0, 360.0, aboveSixtyNorthImage);
-//        } else if (normLat >= 150.0f) {
-//            return WATER_VALUE;
-//        }
-
-//        throw new IllegalStateException("Cannot come here");
     }
 
     /**
@@ -243,7 +233,7 @@ public class WatermaskClassifier {
     }
 
     private static int getSample(double lat, double lon, double latHeight, double lonWidth, OpImage image) {
-        if (image == null || latHeight == HighResImageWrapper.INVALID_LAT_HEIGHT) {
+        if (image == null || latHeight == HighResImageSource.INVALID_LAT_HEIGHT) {
             return INVALID_VALUE;
         }
         final double pixelSizeX = lonWidth / image.getWidth();
@@ -300,7 +290,7 @@ public class WatermaskClassifier {
                         .build();
     }
 
-    private static interface ImageWrapper {
+    private static interface ImageSource {
 
         float getLonWidth();
         float getLatHeight(float lat);
@@ -308,14 +298,14 @@ public class WatermaskClassifier {
 
     }
 
-    private static class HighResImageWrapper implements ImageWrapper {
+    private static class HighResImageSource implements ImageSource {
 
 
         private static final float INVALID_LAT_HEIGHT = -1.0F;
         private final OpImage centralImage;
         private final OpImage northImage;
 
-        private HighResImageWrapper(OpImage centralImage, OpImage northImage) {
+        private HighResImageSource(OpImage centralImage, OpImage northImage) {
             this.centralImage = centralImage;
             this.northImage = northImage;
         }
@@ -346,7 +336,7 @@ public class WatermaskClassifier {
         }
     }
 
-    private static class LowResImageWrapper implements ImageWrapper {
+    private static class LowResImageSource implements ImageSource {
 
         OpImage image;
 

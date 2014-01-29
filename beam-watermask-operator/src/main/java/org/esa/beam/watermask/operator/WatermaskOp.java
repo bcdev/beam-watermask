@@ -41,22 +41,24 @@ import java.text.MessageFormat;
  * For each pixel, it contains the fraction of water; a value of 0.0 indicates land, a value of 100.0 indicates water,
  * and every value in between indicates a mixed pixel.
  * <br/>
- * The water mask is based on data given by SRTM-shapefiles between 60° north and 60° south, and by the GlobCover world
- * map above 60° north.
- * Since the base data may exhibit a higher resolution than the input product, a subsampling &ge;1 may be specified;
- * therefore, mixed pixels may occur.
+ * There are two auxiliary data sets on which the watermask can be based. The first, high-res dataset is based on data
+ * given by SRTM-shapefiles between 60° north and 58° south, and by the GlobCover world map above 60° north. Below 58°
+ * south, this dataset does not contain any data, so the resulting product will contain the fill value for these parts.
+ * This high-res dataset will be employed when the resolution parameter is set to 50 or 150.<br/>
+ * The second dataset is based on GSHHS data in a resolution of 1 km. It covers the whole earth, and will be employed
+ * when the resolution parameter is set to 1000.<br/>
+ * Since the base data may exhibit a higher resolution than the input product, a subsampling &ge;1 may be specified.
+ * This means that mixed pixels may occur.<br/>
  *
  * @author Thomas Storm
  */
-@SuppressWarnings({"FieldCanBeLocal"})
+@SuppressWarnings({"FieldCanBeLocal", "UnusedDeclaration"})
 @OperatorMetadata(alias = "LandWaterMask",
                   version = "1.3",
                   internal = false,
                   authors = "Thomas Storm",
-                  copyright = "(c) 2011 by Brockmann Consult",
-                  description = "Operator creating a target product with a single band containing a land/water-mask." +
-                                " which is based on SRTM-shapefiles (between 60° north and 60° south) and the " +
-                                "GlobCover world map (above 60° north) and therefore very accurate.")
+                  copyright = "(c) 2011-2014 by Brockmann Consult",
+                  description = "Operator creating a target product with a single band containing a land/water-mask.")
 public class WatermaskOp extends Operator {
 
     @SourceProduct(alias = "source", description = "The Product the land/water-mask shall be computed for.",
@@ -64,7 +66,7 @@ public class WatermaskOp extends Operator {
     private Product sourceProduct;
 
     @Parameter(description = "Specifies on which resolution the water mask shall be based.", unit = "m/pixel",
-               label = "Resolution", defaultValue = "1000", valueSet = {"50", "150", "1000"})
+               label = "Resolution", defaultValue = "50", valueSet = {"50", "150", "1000"})
     private int resolution;
 
     @Parameter(description = "Specifies the factor between the resolution of the source product and the watermask in " +

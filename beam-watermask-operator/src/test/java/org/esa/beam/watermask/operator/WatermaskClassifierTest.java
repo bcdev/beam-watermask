@@ -84,48 +84,6 @@ public class WatermaskClassifierTest {
         assertFalse(gcClassifier.isWater(-4.2652f, 11.49324f));
     }
 
-//    @Test
-//    public void testGetWatermaskSampleBelowSixty() throws Exception {
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-62.611664f, -60.20445f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-62.609562f, -60.204235f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-62.609562f, -60.20228f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-62.61169f, -60.202232f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-62.61392f, -60.202305f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-62.409748f, -59.565838f));
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-62.412197f, -59.565838f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE,  modisClassifier.getWaterMaskSample(-62.409687f, -59.56362f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-64.12632f, -56.906746f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-64.124504f, -56.906593f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(-64.12606f, -56.908825f));
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(-64.12833f, -56.911137f));
-//    }
-//
-//    @Test
-//    @Ignore
-//    public void testGetWatermaskSampleAboveSixtyMODIS() throws Exception {
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(70.860277f, 29.205115f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(70.853971f, 29.210610f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(72.791664f, 105.28333f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE,  modisClassifier.getWaterMaskSample(72.794586f, 105.27786f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(80.19444f, 25.963888f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE,  modisClassifier.getWaterMaskSample(80.14856f, 25.95601f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(80.18703f, 26.04707f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE,  modisClassifier.getWaterMaskSample(80.176834f, 26.054949f));
-//
-//        assertEquals(WatermaskClassifier.WATER_VALUE, modisClassifier.getWaterMaskSample(76.36008f, -20.632616f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(76.36008f, -20.63075f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(76.36214f, -20.63075f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(76.362175f, -20.63285f));
-//        assertEquals(WatermaskClassifier.LAND_VALUE, modisClassifier.getWaterMaskSample(76.357895f, -20.632656f));
-//    }
-
     @Test
     public void testGetZipfile() throws Exception {
         // north-west
