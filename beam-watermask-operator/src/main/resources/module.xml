@@ -36,6 +36,7 @@
 
     <extension point="beam-ui:actions">
         <action>
+            <parent>tools</parent>
             <id>watermask</id>
             <class>org.esa.beam.visat.actions.DefaultOperatorAction</class>
             <operatorName>LandWaterMask</operatorName>
@@ -44,7 +45,6 @@
             <text>Land/Water-mask...</text>
             <shortDescr>Accurate Land/Water-mask based on shape files.</shortDescr>
             <mnemonic/>
-            <parent>tool</parent>
             <helpID>watermask</helpID>
             <placeAfter/>
         </action>
