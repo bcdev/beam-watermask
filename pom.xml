@@ -7,7 +7,7 @@
     <groupId>org.esa.beam</groupId>
     <artifactId>beam-watermask</artifactId>
     <name>BEAM Watermask</name>
-    <version>1.3.2-SNAPSHOT</version>
+    <version>1.3.2</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -17,7 +17,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <beam.version>5.0-SNAPSHOT</beam.version>
+        <beam.version>5.0</beam.version>
         <geotools.version>2.7.4</geotools.version>
     </properties>
 
@@ -31,7 +31,7 @@
             <dependency>
                 <groupId>org.esa.beam</groupId>
                 <artifactId>beam-geotiff</artifactId>
-                <version>1.2.2</version>
+                <version>${beam.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.geotools</groupId>
