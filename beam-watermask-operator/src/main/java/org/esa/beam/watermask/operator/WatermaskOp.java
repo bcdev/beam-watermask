@@ -36,12 +36,12 @@ import java.io.IOException;
 import java.text.MessageFormat;
 
 /**
- * The watermask operator is a GPF-Operator. It takes the geographic bounds of the input product and creates a new
- * product with the same bounds. The output product contains a single band, which is a land/water fraction mask.
+ * The {@code LandWaterMask} operator takes the geographic bounds of the input product and creates a new
+ * product with the same bounds. The output product contains a single band, which is the water fraction of a pixel.
  * For each pixel, it contains the fraction of water; a value of 0.0 indicates land, a value of 100.0 indicates water,
  * and every value in between indicates a mixed pixel.
  * <br/>
- * There are two auxiliary data sets on which the watermask can be based. The first, high-res dataset is based on data
+ * There are two auxiliary data sets on which the water-mask can be based. The first, high-res dataset is based on data
  * given by SRTM-shapefiles between 60° north and 58° south, and by the GlobCover world map above 60° north. Below 58°
  * south, this dataset does not contain any data, so the resulting product will contain the fill value for these parts.
  * This high-res dataset will be employed when the resolution parameter is set to 50 or 150.<br/>
