@@ -12,7 +12,7 @@
     <artifactId>beam-watermask-operator</artifactId>
 
     <name>BEAM Water-Mask Operator</name>
-    <description>Water fractions computed from SRTM, GSHHS, MERIS and MODIS auxiliary data.</description>
+    <description>Computes water coverage fractions based on SRTM, GSHHS, MERIS and MODIS auxiliary data.</description>
 
     <dependencies>
         <dependency>

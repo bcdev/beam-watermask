@@ -4,7 +4,7 @@
     <version>1.3.3</version>
 
     <name>BEAM Water-Mask Operator</name>
-    <description>Water fractions computed from SRTM, GSHHS, MERIS and MODIS auxiliary data.</description>
+    <description>Computes water coverage fractions based on SRTM, GSHHS, MERIS and MODIS auxiliary data.</description>
 
     <vendor>Brockmann Consult GmbH</vendor>
     <contactAddress>
@@ -40,10 +40,10 @@
             <parent>processing.preProcessing</parent>
             <class>org.esa.beam.visat.actions.DefaultOperatorAction</class>
             <operatorName>LandWaterMask</operatorName>
-            <dialogTitle>Land/Water-mask</dialogTitle>
+            <dialogTitle>Land/Water Mask</dialogTitle>
             <targetProductNameSuffix>_watermask</targetProductNameSuffix>
-            <text>Land/Water-mask...</text>
-            <shortDescr>Land/Water-mask based on SRTM and MODIS observations.</shortDescr>
+            <text>Land/Water Mask...</text>
+            <shortDescr>Computes water coverage fractions based on SRTM, GSHHS, MERIS and MODIS auxiliary data.</shortDescr>
             <mnemonic/>
             <helpID>watermask</helpID>
             <placeAfter/>
