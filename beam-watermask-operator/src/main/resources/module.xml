@@ -1,7 +1,7 @@
 <module>
     <manifestVersion>1.0.0</manifestVersion>
     <symbolicName>beam-watermask</symbolicName>
-    <version>1.3.3</version>
+    <version>1.3.4</version>
 
     <name>BEAM Water-Mask Operator</name>
     <description>Computes water coverage fractions based on SRTM, GSHHS, MERIS and MODIS auxiliary data.</description>
