@@ -52,7 +52,7 @@ public class WatermaskClassifier {
     static final int GC_IMAGE_WIDTH = 129600;
     static final int GC_IMAGE_HEIGHT = 10800;
 
-    static final String AUXDATA_VERSION = "v1.3";
+    static final String AUXDATA_VERSION = "v1.3.4";
 
     private final ImageSource imageSource;
     private float[] samplingStepsX;

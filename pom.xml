@@ -6,7 +6,7 @@
 
     <groupId>org.esa.beam</groupId>
     <artifactId>beam-watermask</artifactId>
-    <version>1.3.3</version>
+    <version>1.3.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>BEAM Water-Mask</name>
@@ -19,7 +19,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <beam.version>5.0</beam.version>
+        <beam.version>[5.0, 5.1-SNAPSHOT)</beam.version>
         <geotools.version>2.7.4</geotools.version>
     </properties>
 
@@ -28,11 +28,6 @@
             <dependency>
                 <groupId>org.esa.beam</groupId>
                 <artifactId>beam-gpf</artifactId>
-                <version>${beam.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.esa.beam</groupId>
-                <artifactId>beam-geotiff</artifactId>
                 <version>${beam.version}</version>
             </dependency>
             <dependency>
@@ -48,7 +43,7 @@
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.11</version>
+                <version>4.12</version>
                 <scope>test</scope>
             </dependency>
         </dependencies>

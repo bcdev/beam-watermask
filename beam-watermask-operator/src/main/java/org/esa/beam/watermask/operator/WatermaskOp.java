@@ -54,8 +54,7 @@ import java.text.MessageFormat;
  */
 @SuppressWarnings({"FieldCanBeLocal", "UnusedDeclaration"})
 @OperatorMetadata(alias = "LandWaterMask",
-                  version = "1.3",
-                  internal = false,
+                  version = "1.3.4",
                   authors = "Thomas Storm",
                   copyright = "(c) 2011-2014 by Brockmann Consult",
                   description = "Operator creating a target product with a single band containing a land/water-mask.")
@@ -102,7 +101,11 @@ public class WatermaskOp extends Operator {
             final GeoCoding geoCoding = sourceProduct.getGeoCoding();
             for (int y = rectangle.y; y < rectangle.y + rectangle.height; y++) {
                 for (int x = rectangle.x; x < rectangle.x + rectangle.width; x++) {
-                    final byte waterFraction = classifier.getWaterMaskFraction(geoCoding, x, y);
+                    final byte waterFraction;
+                    if (x >= 32397 && y >= 987) {
+                        System.out.println("Hello from the other side!");
+                    }
+                    waterFraction = classifier.getWaterMaskFraction(geoCoding, x, y);
                     targetTile.setSample(x, y, waterFraction);
                 }
             }
