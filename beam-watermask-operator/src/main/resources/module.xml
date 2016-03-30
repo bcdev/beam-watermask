@@ -16,6 +16,8 @@
 
     <changelog>
         <![CDATA[
+           Changes in 1.3.4<br/>
+            [BEAM-1782] Land/Water Mask has wrong land pixels at the anti-meridian<br/>
            Changes in 1.3.3<br/>
             - changed the action's VISAT menu group<br/>
            Changes in 1.3.2<br/>
